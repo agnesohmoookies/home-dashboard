@@ -187,8 +187,8 @@
       <div id="date" class="date-display">Loading date...</div>
     </div>
     <div style="text-align: right;">
-      <div style="font-size: 0.85rem; font-weight: bold;">HOME DASHBOARD</div>
-      <div style="font-size: 0.75rem; color: var(--text-sub);">Hong Kong</div>
+      <div style="font-size: 0.85rem; font-weight: bold;"></div>
+      <div style="font-size: 0.75rem; color: var(--text-sub);"></div>
     </div>
   </header>
 
@@ -210,10 +210,10 @@
         <span>📅 Today's Schedule</span>
       </div>
       <div class="calendar-container">
-        <!-- Replace src with your embedded Google Calendar URL -->
+        <!-- Google Calendar Agenda view iframe -->
         <iframe 
           id="calendar-iframe"
-          src="https://calendar.google.com/calendar/embed?height=600&wkst=2&ctz=Asia%2FHong_Kong&showPrint=0&mode=AGENDA&showTz=0&showDate=0&showNav=0&title&showTabs=0&src=YWduZXNAb2htb29va2llcy5jb20&color=%23039be5" 
+          src="https://calendar.google.com/calendar/embed?height=600&wkst=2&ctz=Asia%2FHong_Kong&showPrint=0&mode=AGENDA&showDate=0&showTabs=0&showTz=0&showNav=0&showTitle=0&src=YWduZXNAb2htb29va2llcy5jb20&color=%23039be5" 
           style="border: 0" 
           frameborder="0" 
           scrolling="no">
@@ -226,21 +226,13 @@
     // ==========================================
     // CONFIGURATION: Citybus Stops & Route Filter
     // ==========================================
-    // Set stop IDs and optional route arrays.
-    // Examples:
-    //   routes: ["10", "5B"]  -> Only show buses 10 and 5B at Stop 002364
-    //   routes: []            -> Show ALL buses passing through Stop 002170
     const BUS_STOPS = [
-      { id: "002364", label: "Stop 002364", routes: [] }, // Add specific routes e.g. ["10", "720"] or leave [] for all
-      { id: "002170", label: "Stop 002170", routes: ["595", "95C"] }  // Add specific routes e.g. ["1", "5B"] or leave [] for all
+      { id: "002364", label: "Stop 002364", routes: [] }, 
+      { id: "002170", label: "Stop 002170", routes: ["595", "95C"] }
     ];
 
-    // Refresh rate in milliseconds (30 seconds)
     const REFRESH_INTERVAL = 30000;
 
-    // ==========================================
-    // CLOCK & DATE
-    // ==========================================
     function updateClock() {
       const now = new Date();
       document.getElementById('clock').innerText = now.toLocaleTimeString('en-HK', { 
@@ -257,32 +249,37 @@
     setInterval(updateClock, 1000);
     updateClock();
 
-    // ==========================================
-    // BUS ETA FETCHING (Citybus Open API)
-    // ==========================================
+    async function fetchStopData(company, stopId) {
+      try {
+        const res = await fetch(`https://rt.data.gov.hk/v2/transport/citybus/stop-eta/${company}/${stopId}`);
+        if (!res.ok) return [];
+        const json = await res.json();
+        return json.data || [];
+      } catch (e) {
+        return [];
+      }
+    }
+
     async function fetchBusETA() {
       const busListEl = document.getElementById('bus-list');
       const updatedEl = document.getElementById('last-updated');
 
       try {
         const fetchRequests = BUS_STOPS.map(async (stop) => {
-          try {
-            // Citybus Stop ETA v2 API endpoint
-            const res = await fetch(`https://rt.data.gov.hk/v2/transport/citybus/stop-eta/CTB/${stop.id}`);
-            if (!res.ok) return [];
-            const json = await res.json();
-            const data = json.data || [];
+          // Query both CTB and NWFB operator codes in parallel
+          const [ctbData, nwfbData] = await Promise.all([
+            fetchStopData('CTB', stop.id),
+            fetchStopData('NWFB', stop.id)
+          ]);
+          
+          const combined = [...ctbData, ...nwfbData];
 
-            // Filter specific routes if specified in stop.routes
-            const filtered = stop.routes && stop.routes.length > 0
-              ? data.filter(item => stop.routes.includes(item.route))
-              : data;
+          // Filter by route if routes are defined
+          const filtered = stop.routes && stop.routes.length > 0
+            ? combined.filter(item => stop.routes.includes(item.route))
+            : combined;
 
-            return filtered.map(item => ({ ...item, stopLabel: stop.label }));
-          } catch (e) {
-            console.warn(`Failed to fetch Citybus data for stop ${stop.id}:`, e);
-            return [];
-          }
+          return filtered.map(item => ({ ...item, stopLabel: stop.label }));
         });
 
         const results = await Promise.all(fetchRequests);
@@ -307,7 +304,7 @@
             };
           })
           .sort((a, b) => a.mins - b.mins)
-          .slice(0, 8); // Display top 8 upcoming arrivals
+          .slice(0, 8);
 
         if (arrivals.length === 0) {
           busListEl.innerHTML = '<li class="loading">No scheduled arrivals soon.</li>';
@@ -338,7 +335,6 @@
       }
     }
 
-    // Initial fetch and periodic refresh
     fetchBusETA();
     setInterval(fetchBusETA, REFRESH_INTERVAL);
   </script>
