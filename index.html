@@ -25,27 +25,48 @@
     body {
       background-color: var(--bg-color);
       color: var(--text-main);
-      display: flex;
-      flex-direction: column;
       height: 100vh;
-      padding: 8px;
-      overflow: hidden;
+      width: 100vw;
+      overflow: hidden; /* Prevent native body scrolling */
     }
 
-    .container {
+    /* Swipe Carousel Container */
+    .swipe-container {
       display: flex;
-      flex-direction: row; /* Aligns Bus and Calendar side-by-side horizontally */
-      flex: 1;
-      gap: 8px;
-      height: 100%;
-      width: 100%;
+      flex-direction: row;
+      width: 100vw;
+      height: 100vh;
+      overflow-x: auto;
+      overflow-y: hidden;
+      scroll-snap-type: x mandatory; /* Force horizontal snapping */
+      scroll-behavior: smooth;
+      -webkit-overflow-scrolling: touch; /* Smooth inertia scrolling for iOS */
+      
+      /* Hide scrollbars but keep scrolling active */
+      scrollbar-width: none; /* Firefox */
+      -ms-overflow-style: none;  /* IE and Edge */
+    }
+
+    .swipe-container::-webkit-scrollbar {
+      display: none; /* Chrome, Safari, Opera */
+    }
+
+    /* Individual Full-Screen Pages */
+    .swipe-page {
+      width: 100vw;
+      height: 100vh;
+      flex-shrink: 0;
+      scroll-snap-align: start; /* Snap page boundaries */
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
     }
 
     .card {
       background: var(--card-bg);
       border-radius: 12px;
       border: 1px solid var(--border-color);
-      padding: 10px;
+      padding: 14px;
       flex: 1;
       display: flex;
       flex-direction: column;
@@ -55,7 +76,7 @@
 
     .card-footer {
       margin-top: auto;
-      padding-top: 4px;
+      padding-top: 8px;
       border-top: 1px solid var(--border-color);
       display: flex;
       justify-content: flex-start;
@@ -63,7 +84,7 @@
     }
 
     .refresh-badge {
-      font-size: 0.7rem;
+      font-size: 0.75rem;
       color: var(--text-sub);
       font-weight: normal;
     }
@@ -73,14 +94,14 @@
       list-style: none;
       overflow-y: auto;
       flex: 1;
-      padding-bottom: 4px;
+      padding-bottom: 8px;
     }
 
     .stop-header {
-      font-size: 0.85rem;
+      font-size: 1rem;
       font-weight: bold;
       color: var(--accent); /* Yellow stop header */
-      padding: 6px 0 4px 0;
+      padding: 8px 0 6px 0;
       border-bottom: 1px solid var(--border-color);
       display: flex;
       align-items: center;
@@ -88,31 +109,31 @@
     }
 
     .stop-header:not(:first-child) {
-      margin-top: 8px;
+      margin-top: 14px;
     }
 
     .bus-item {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      padding: 5px 0;
+      padding: 6px 0;
       border-bottom: 1px solid #2a2a2a;
     }
 
     .bus-info {
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: 10px;
     }
 
     .bus-route {
       background: var(--accent);
       color: #000;
       font-weight: bold;
-      padding: 2px 6px;
-      border-radius: 4px;
-      font-size: 0.9rem;
-      min-width: 45px;
+      padding: 3px 8px;
+      border-radius: 6px;
+      font-size: 1.05rem;
+      min-width: 55px;
       text-align: center;
     }
 
@@ -122,79 +143,116 @@
     }
 
     .bus-dest {
-      font-size: 0.8rem;
+      font-size: 0.85rem;
       color: var(--text-main);
       font-weight: 500;
     }
 
     .bus-eta {
-      font-size: 1.1rem;
+      font-size: 1.25rem;
       font-weight: bold;
       color: var(--accent-green);
       text-align: right;
     }
 
     .bus-eta span {
+      font-size: 0.8rem;
+      color: var(--text-sub);
+    }
+
+    /* Subtle Grey Separator Styling */
+    .bus-eta .separator {
+      color: var(--text-sub);
+      opacity: 0.6;
+      font-weight: normal;
+      margin: 0 4px;
+    }
+
+    /* Custom Calendar List Styling */
+    .calendar-list {
+      list-style: none;
+      overflow-y: auto;
+      flex: 1;
+      padding-bottom: 4px;
+    }
+
+    .calendar-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      padding: 10px 0;
+      border-bottom: 1px solid #2a2a2a;
+    }
+
+    .event-time {
+      font-size: 0.85rem;
+      font-weight: bold;
+      color: var(--accent); /* Yellow matching stop labels */
+      min-width: 65px;
+      padding-top: 1px;
+    }
+
+    .event-details {
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+    }
+
+    .event-title {
+      font-size: 0.9rem;
+      color: var(--text-main);
+      font-weight: 500;
+    }
+
+    .event-desc {
       font-size: 0.75rem;
       color: var(--text-sub);
-      margin-left: 2px;
+      margin-top: 3px;
     }
 
     .loading, .error {
       color: var(--text-sub);
-      font-size: 0.8rem;
+      font-size: 0.85rem;
       text-align: center;
-      margin-top: 10px;
-    }
-
-    /* Calendar Container */
-    .calendar-container {
-      flex: 1;
-      width: 100%;
-      height: 100%;
-      border: none;
-      border-radius: 8px;
-    }
-
-    iframe {
-      width: 100%;
-      height: 100%;
-      border: 0;
-      border-radius: 8px;
+      margin-top: 20px;
     }
   </style>
 </head>
 <body>
 
-  <div class="container">
-    <!-- Section 1: Bus Arrivals (Citybus) -->
-    <div class="card">
-      <ul id="bus-list" class="bus-list">
-        <li class="loading">Fetching live Citybus data...</li>
-      </ul>
-      <div class="card-footer">
-        <span id="last-updated" class="refresh-badge">Updating...</span>
+  <!-- Snapping Horizontal Carousel -->
+  <div class="swipe-container">
+    
+    <!-- Page 1: Standalone Bus Schedule -->
+    <div class="swipe-page">
+      <div class="card">
+        <ul id="bus-list" class="bus-list">
+          <li class="loading">Fetching live Citybus data...</li>
+        </ul>
+        <div class="card-footer">
+          <span id="last-updated" class="refresh-badge">Updating...</span>
+        </div>
       </div>
     </div>
 
-    <!-- Section 2: Son's Schedule -->
-    <div class="card">
-      <div class="calendar-container">
-        <iframe 
-          id="calendar-iframe"
-          src="https://calendar.google.com/calendar/embed?height=600&wkst=2&ctz=Asia%2FHong_Kong&showPrint=0&mode=AGENDA&showTz=0&showDate=0&showNav=0&title&showTabs=0&src=YWduZXNAb2htb29va2llcy5jb20&color=%23039be5" 
-          style="border: 0" 
-          frameborder="0" 
-          scrolling="no">
-        </iframe>
+    <!-- Page 2: Standalone Calendar Schedule (Swipe Right) -->
+    <div class="swipe-page">
+      <div class="card">
+        <ul id="calendar-list" class="calendar-list">
+          <li class="loading">Loading calendar events...</li>
+        </ul>
       </div>
     </div>
+
   </div>
 
   <script>
     // ==========================================
-    // CONFIGURATION: Citybus Stops & Route Filter
+    // CONFIGURATION
     // ==========================================
+    const API_KEY = "YOUR_GOOGLE_API_KEY"; // Paste your free Google API Key here!
+    const CALENDAR_ID = "agnes@ohmoookies.com"; // Your Google Calendar ID
+
     const BUS_STOPS = [
       { 
         id: "002364", 
@@ -236,6 +294,72 @@
     }
     setInterval(updateRefreshBadge, 1000);
 
+    // ==========================================
+    // CUSTOM GOOGLE CALENDAR FETCHING (Today Only)
+    // ==========================================
+    const MOCK_EVENTS = [
+      { summary: "🍳 Breakfast & Get Ready", start: { dateTime: new Date().setHours(7, 30, 0) }, description: "Dress up for school and check morning temperature." },
+      { summary: "🚌 School Bus departure", start: { dateTime: new Date().setHours(8, 15, 0) }, description: "Remind him to grab his lunchbox." },
+      { summary: "🍱 Nutritious Lunch", start: { dateTime: new Date().setHours(12, 30, 0) }, description: "Freshly prepared meal by the helper." },
+      { summary: "📚 Homework & Spellings", start: { dateTime: new Date().setHours(15, 30, 0) }, description: "Practice reading books and spelling words." },
+      { summary: "🚿 Shower & Change", start: { dateTime: new Date().setHours(17, 30, 0) }, description: "Wash up before dinner." },
+      { summary: "🍽️ Dinner Time", start: { dateTime: new Date().setHours(18, 30, 0) }, description: "Family dinner together." }
+    ];
+
+    async function fetchCalendarEvents() {
+      if (!API_KEY || API_KEY === "YOUR_GOOGLE_API_KEY" || API_KEY.trim() === "") {
+        // Fall back gracefully to mock events so you can edit the list directly in the code!
+        renderEvents(MOCK_EVENTS);
+        return;
+      }
+
+      try {
+        const now = new Date();
+        const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
+        const endOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59).toISOString();
+        
+        const url = `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(CALENDAR_ID)}/events?key=${API_KEY}&timeMin=${startOfToday}&timeMax=${endOfToday}&singleEvents=true&orderBy=startTime`;
+
+        const res = await fetch(url);
+        if (!res.ok) throw new Error('API request failed');
+
+        const data = await res.json();
+        renderEvents(data.items || []);
+
+      } catch (error) {
+        console.error('Error fetching Google Calendar:', error);
+        renderEvents(MOCK_EVENTS);
+      }
+    }
+
+    function renderEvents(events) {
+      const calendarListEl = document.getElementById('calendar-list');
+      if (events.length === 0) {
+        calendarListEl.innerHTML = '<li class="loading">No events scheduled for today.</li>';
+        return;
+      }
+
+      calendarListEl.innerHTML = events.map(event => {
+        const start = event.start.dateTime ? new Date(event.start.dateTime) : null;
+        let timeStr = 'All Day';
+        if (start) {
+          timeStr = start.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }).toLowerCase();
+        }
+        return `
+          <li class="calendar-item">
+            <span class="event-time">${timeStr}</span>
+            <div class="event-details">
+              <span class="event-title">${event.summary}</span>
+              ${event.description ? `<span class="event-desc">${event.description}</span>` : ''}
+            </div>
+          </li>
+        `;
+      }).join('');
+    }
+
+    // ==========================================
+    // BUS ETA FETCHING (Citybus Open API)
+    // ==========================================
     async function fetchCitybusData(stopId, route) {
       try {
         let url = route 
@@ -316,7 +440,7 @@
           existingRoute.times.push(diffMins);
         });
 
-        // HTML builder with customized layouts
+        // Generate HTML with correct sorting and grouping
         let htmlContent = '';
         BUS_STOPS.forEach(stop => {
           const routesInStop = stopGroups[stop.label];
@@ -337,10 +461,14 @@
             htmlContent += `<li class="stop-header">📍 ${stop.label}</li>`;
             routesInStop.forEach(r => {
               let etaText = '';
+              const sep = '<span class="separator"> | </span>';
+              
               if (r.times.length === 1) {
                 etaText = `${r.times[0]} <span>mins</span>`;
-              } else if (r.times.length >= 2) {
-                etaText = `${r.times[0]} | ${r.times[1]} <span>mins</span>`;
+              } else if (r.times.length === 2) {
+                etaText = `${r.times[0]}${sep}${r.times} <span>mins</span>`;
+              } else if (r.times.length >= 3) {
+                etaText = `${r.times[0]}${sep}${r.times}${sep}${r.times} <span>mins</span>`;
               } else {
                 etaText = `-- <span>mins</span>`;
               }
@@ -377,8 +505,12 @@
       }
     }
 
+    // Initial load and interval setups
     fetchBusETA();
     setInterval(fetchBusETA, REFRESH_INTERVAL);
+
+    fetchCalendarEvents();
+    setInterval(fetchCalendarEvents, 600000); // 10 minutes refresh rate
   </script>
 </body>
 </html>
