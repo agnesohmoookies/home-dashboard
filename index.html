@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Home Dashboard</title>
+  <style>
+    :root {
+      --bg-color: #121212;
+      --card-bg: #1e1e1e;
+      --text-main: #ffffff;
+      --text-sub: #a0a0a0;
+      --accent: #ffc107; /* Citybus Yellow */
+      --accent-green: #4caf50;
+      --border-color: #333333;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+
+    body {
+      background-color: var(--bg-color);
+      color: var(--text-main);
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      padding: 12px;
+      gap: 12px;
+      overflow: hidden;
+    }
+
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 12px;
+      background: var(--card-bg);
+      border-radius: 12px;
+      border: 1px solid var(--border-color);
+    }
+
+    .time-display {
+      font-size: 1.5rem;
+      font-weight: bold;
+      color: var(--accent);
+    }
+
+    .date-display {
+      font-size: 0.9rem;
+      color: var(--text-sub);
+    }
+
+    .container {
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+      gap: 12px;
+      height: calc(100% - 60px);
+    }
+
+    @media (min-width: 600px) {
+      .container {
+        flex-direction: row;
+      }
+    }
+
+    .card {
+      background: var(--card-bg);
+      border-radius: 12px;
+      border: 1px solid var(--border-color);
+      padding: 14px;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .card-title {
+      font-size: 1.1rem;
+      font-weight: 600;
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--border-color);
+      padding-bottom: 6px;
+    }
+
+    .refresh-badge {
+      font-size: 0.75rem;
+      color: var(--text-sub);
+      font-weight: normal;
+    }
+
+    /* Bus ETA List Styling */
+    .bus-list {
+      list-style: none;
+      overflow-y: auto;
+      flex: 1;
+    }
+
+    .bus-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 0;
+      border-bottom: 1px solid #2a2a2a;
+    }
+
+    .bus-info {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .bus-route {
+      background: var(--accent);
+      color: #000;
+      font-weight: bold;
+      padding: 4px 8px;
+      border-radius: 6px;
+      font-size: 1.05rem;
+      min-width: 55px;
+      text-align: center;
+    }
+
+    .bus-details {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .bus-dest {
+      font-size: 0.9rem;
+      color: var(--text-main);
+      font-weight: 500;
+    }
+
+    .bus-stop-label {
+      font-size: 0.75rem;
+      color: var(--text-sub);
+    }
+
+    .bus-eta {
+      font-size: 1.25rem;
+      font-weight: bold;
+      color: var(--accent-green);
+    }
+
+    .bus-eta span {
+      font-size: 0.8rem;
+      color: var(--text-sub);
+    }
+
+    .loading, .error {
+      color: var(--text-sub);
+      font-size: 0.9rem;
+      text-align: center;
+      margin-top: 20px;
+    }
+
+    /* Calendar Container */
+    .calendar-container {
+      flex: 1;
+      width: 100%;
+      height: 100%;
+      border: none;
+      border-radius: 8px;
+    }
+
+    iframe {
+      width: 100%;
+      height: 100%;
+      border: 0;
+      border-radius: 8px;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div>
+      <div id="clock" class="time-display">00:00</div>
+      <div id="date" class="date-display">Loading date...</div>
+    </div>
+    <div style="text-align: right;">
+      <div style="font-size: 0.85rem; font-weight: bold;">HOME DASHBOARD</div>
+      <div style="font-size: 0.75rem; color: var(--text-sub);">Hong Kong</div>
+    </div>
+  </header>
+
+  <div class="container">
+    <!-- Section 1: Bus Arrivals (Citybus) -->
+    <div class="card">
+      <div class="card-title">
+        <span>🚍 Citybus ETA</span>
+        <span id="last-updated" class="refresh-badge">Updating...</span>
+      </div>
+      <ul id="bus-list" class="bus-list">
+        <li class="loading">Fetching live Citybus data...</li>
+      </ul>
+    </div>
+
+    <!-- Section 2: Son's Schedule -->
+    <div class="card">
+      <div class="card-title">
+        <span>📅 Today's Schedule</span>
+      </div>
+      <div class="calendar-container">
+        <!-- Replace src with your embedded Google Calendar URL -->
+        <iframe 
+          id="calendar-iframe"
+          src="https://calendar.google.com/calendar/embed?src=en.hong_kong%23holiday%40group.v.calendar.google.com&ctz=Asia%2FHong_Kong&mode=AGENDA&showNav=0&showTitle=0&showPrint=0&showTabs=0&showCalendars=0" 
+          style="border: 0" 
+          frameborder="0" 
+          scrolling="no">
+        </iframe>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ==========================================
+    // CONFIGURATION: Citybus Stops & Route Filter
+    // ==========================================
+    // Set stop IDs and optional route arrays.
+    // Examples:
+    //   routes: ["10", "5B"]  -> Only show buses 10 and 5B at Stop 002364
+    //   routes: []            -> Show ALL buses passing through Stop 002170
+    const BUS_STOPS = [
+      { id: "002364", label: "Stop 002364", routes: [] }, // Add specific routes e.g. ["10", "720"] or leave [] for all
+      { id: "002170", label: "Stop 002170", routes: ["595", "95C"] }  // Add specific routes e.g. ["1", "5B"] or leave [] for all
+    ];
+
+    // Refresh rate in milliseconds (30 seconds)
+    const REFRESH_INTERVAL = 30000;
+
+    // ==========================================
+    // CLOCK & DATE
+    // ==========================================
+    function updateClock() {
+      const now = new Date();
+      document.getElementById('clock').innerText = now.toLocaleTimeString('en-HK', { 
+        hour: '2-digit', 
+        minute: '2-digit', 
+        hour12: false 
+      });
+      document.getElementById('date').innerText = now.toLocaleDateString('en-HK', { 
+        weekday: 'short', 
+        month: 'short', 
+        day: 'numeric' 
+      });
+    }
+    setInterval(updateClock, 1000);
+    updateClock();
+
+    // ==========================================
+    // BUS ETA FETCHING (Citybus Open API)
+    // ==========================================
+    async function fetchBusETA() {
+      const busListEl = document.getElementById('bus-list');
+      const updatedEl = document.getElementById('last-updated');
+
+      try {
+        const fetchRequests = BUS_STOPS.map(async (stop) => {
+          try {
+            // Citybus Stop ETA v2 API endpoint
+            const res = await fetch(`https://rt.data.gov.hk/v2/transport/citybus/stop-eta/CTB/${stop.id}`);
+            if (!res.ok) return [];
+            const json = await res.json();
+            const data = json.data || [];
+
+            // Filter specific routes if specified in stop.routes
+            const filtered = stop.routes && stop.routes.length > 0
+              ? data.filter(item => stop.routes.includes(item.route))
+              : data;
+
+            return filtered.map(item => ({ ...item, stopLabel: stop.label }));
+          } catch (e) {
+            console.warn(`Failed to fetch Citybus data for stop ${stop.id}:`, e);
+            return [];
+          }
+        });
+
+        const results = await Promise.all(fetchRequests);
+        const combinedData = results.flat();
+
+        if (combinedData.length === 0) {
+          busListEl.innerHTML = '<li class="loading">No upcoming departures found for selected routes.</li>';
+          return;
+        }
+
+        const now = new Date();
+        const arrivals = combinedData
+          .filter(item => item.eta)
+          .map(item => {
+            const etaDate = new Date(item.eta);
+            const diffMins = Math.max(0, Math.round((etaDate - now) / 60000));
+            return {
+              route: item.route,
+              dest: item.dest_en || item.dest_tc || 'N/A',
+              stopLabel: item.stopLabel,
+              mins: diffMins
+            };
+          })
+          .sort((a, b) => a.mins - b.mins)
+          .slice(0, 8); // Display top 8 upcoming arrivals
+
+        if (arrivals.length === 0) {
+          busListEl.innerHTML = '<li class="loading">No scheduled arrivals soon.</li>';
+          return;
+        }
+
+        busListEl.innerHTML = arrivals.map(item => `
+          <li class="bus-item">
+            <div class="bus-info">
+              <span class="bus-route">${item.route}</span>
+              <div class="bus-details">
+                <span class="bus-dest">To ${item.dest}</span>
+                <span class="bus-stop-label">📍 ${item.stopLabel}</span>
+              </div>
+            </div>
+            <div class="bus-eta">
+              ${item.mins} <span>min${item.mins === 1 ? '' : 's'}</span>
+            </div>
+          </li>
+        `).join('');
+
+        const updateTime = new Date().toLocaleTimeString('en-HK', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        updatedEl.innerText = `Updated ${updateTime}`;
+
+      } catch (error) {
+        console.error('Error fetching Citybus ETA:', error);
+        busListEl.innerHTML = '<li class="error">Failed to load bus times. Will retry...</li>';
+      }
+    }
+
+    // Initial fetch and periodic refresh
+    fetchBusETA();
+    setInterval(fetchBusETA, REFRESH_INTERVAL);
+  </script>
+</body>
+</html>
