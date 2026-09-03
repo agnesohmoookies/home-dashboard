@@ -79,35 +79,39 @@
       overflow: hidden;
     }
 
-    .card-title {
-      font-size: 1.1rem;
+    /* Bus Content & Grouping */
+    .bus-content {
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+      overflow-y: auto;
+    }
+
+    .stop-group {
+      margin-bottom: 12px;
+    }
+
+    .stop-header {
+      font-size: 1rem;
       font-weight: 600;
-      margin-bottom: 10px;
+      color: var(--accent);
+      padding-bottom: 4px;
+      border-bottom: 1px solid var(--border-color);
+      margin-bottom: 6px;
       display: flex;
       align-items: center;
-      justify-content: space-between;
-      border-bottom: 1px solid var(--border-color);
-      padding-bottom: 6px;
+      gap: 6px;
     }
 
-    .refresh-badge {
-      font-size: 0.75rem;
-      color: var(--text-sub);
-      font-weight: normal;
-    }
-
-    /* Bus ETA List Styling */
     .bus-list {
       list-style: none;
-      overflow-y: auto;
-      flex: 1;
     }
 
     .bus-item {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      padding: 8px 0;
+      padding: 6px 0;
       border-bottom: 1px solid #2a2a2a;
     }
 
@@ -139,11 +143,6 @@
       font-weight: 500;
     }
 
-    .bus-stop-label {
-      font-size: 0.75rem;
-      color: var(--text-sub);
-    }
-
     .bus-eta {
       font-size: 1.25rem;
       font-weight: bold;
@@ -153,6 +152,18 @@
     .bus-eta span {
       font-size: 0.8rem;
       color: var(--text-sub);
+    }
+
+    .card-footer {
+      padding-top: 8px;
+      margin-top: auto;
+      text-align: left;
+    }
+
+    .refresh-badge {
+      font-size: 0.75rem;
+      color: var(--text-sub);
+      font-weight: normal;
     }
 
     .loading, .error {
@@ -191,20 +202,16 @@
   <div class="container">
     <!-- Section 1: Bus Departures -->
     <div class="card">
-      <div class="card-title">
-        <span>🚍 Bus Departing in...</span>
+      <div id="bus-content" class="bus-content">
+        <div class="loading">Fetching live Citybus data...</div>
+      </div>
+      <div class="card-footer">
         <span id="last-updated" class="refresh-badge">Updating...</span>
       </div>
-      <ul id="bus-list" class="bus-list">
-        <li class="loading">Fetching live Citybus data...</li>
-      </ul>
     </div>
 
     <!-- Section 2: Son's Schedule -->
     <div class="card">
-      <div class="card-title">
-        <span>📅 Today's Schedule</span>
-      </div>
       <div class="calendar-container">
         <!-- Google Calendar Agenda view iframe -->
         <iframe 
@@ -266,7 +273,7 @@
     updateClock();
 
     // ==========================================
-    // BUS ETA FETCHING & SUBSTRING FILTERING
+    // BUS ETA FETCHING & STOP GROUPING
     // ==========================================
     async function fetchCitybusData(stopId, route) {
       try {
@@ -293,11 +300,11 @@
     }
 
     async function fetchBusETA() {
-      const busListEl = document.getElementById('bus-list');
+      const busContentEl = document.getElementById('bus-content');
       const updatedEl = document.getElementById('last-updated');
 
       try {
-        const fetchRequests = BUS_STOPS.map(async (stop) => {
+        const fetchRequests = BUS_STOPS.map(async (stop, index) => {
           let items = [];
           if (stop.routes && stop.routes.length > 0) {
             const routePromises = stop.routes.map(r => fetchCitybusData(stop.id, r));
@@ -307,69 +314,77 @@
             items = await fetchCitybusData(stop.id, null);
           }
 
-          return items.map(item => ({ 
-            ...item, 
-            stopLabel: stop.label, 
-            excludeDest: stop.excludeDest || [] 
-          }));
+          return {
+            stopId: stop.id,
+            stopLabel: stop.label,
+            order: index,
+            items: items.map(item => ({ 
+              ...item, 
+              excludeDest: stop.excludeDest || [] 
+            }))
+          };
         });
 
-        const results = await Promise.all(fetchRequests);
-        const combinedData = results.flat();
-
-        if (combinedData.length === 0) {
-          busListEl.innerHTML = '<li class="loading">No upcoming departures found for selected routes right now.</li>';
-          return;
-        }
-
+        const stopResults = await Promise.all(fetchRequests);
         const now = new Date();
-        const arrivals = combinedData
-          .filter(item => item.eta)
-          .filter(item => {
-            if (!item.excludeDest || item.excludeDest.length === 0) return true;
-            const destEn = (item.dest_en || '').toLowerCase();
-            const destTc = (item.dest_tc || '').toLowerCase();
-            
-            // Substring match: removes any destination containing excluded phrases
-            const isExcluded = item.excludeDest.some(ex => {
-              const kw = ex.toLowerCase().trim();
-              return destEn.includes(kw) || destTc.includes(kw);
-            });
-            
-            return !isExcluded;
-          })
-          .map(item => {
-            const etaDate = new Date(item.eta);
-            const diffMins = Math.max(0, Math.round((etaDate - now) / 60000));
-            return {
-              route: item.route,
-              dest: item.dest_en || item.dest_tc || 'N/A',
-              stopLabel: item.stopLabel,
-              mins: diffMins
-            };
-          })
-          .sort((a, b) => a.mins - b.mins)
-          .slice(0, 8);
 
-        if (arrivals.length === 0) {
-          busListEl.innerHTML = '<li class="loading">No scheduled outbound departures soon.</li>';
-          return;
-        }
+        let html = '';
+        let totalArrivals = 0;
 
-        busListEl.innerHTML = arrivals.map(item => `
-          <li class="bus-item">
-            <div class="bus-info">
-              <span class="bus-route">${item.route}</span>
-              <div class="bus-details">
-                <span class="bus-dest">To ${item.dest}</span>
-                <span class="bus-stop-label">📍 ${item.stopLabel}</span>
+        stopResults.sort((a, b) => a.order - b.order).forEach(group => {
+          const validArrivals = group.items
+            .filter(item => item.eta)
+            .filter(item => {
+              if (!item.excludeDest || item.excludeDest.length === 0) return true;
+              const destEn = (item.dest_en || '').toLowerCase();
+              const destTc = (item.dest_tc || '').toLowerCase();
+
+              return !item.excludeDest.some(ex => {
+                const kw = ex.toLowerCase().trim();
+                return destEn.includes(kw) || destTc.includes(kw);
+              });
+            })
+            .map(item => {
+              const etaDate = new Date(item.eta);
+              const diffMins = Math.max(0, Math.round((etaDate - now) / 60000));
+              return {
+                route: item.route,
+                dest: item.dest_en || item.dest_tc || 'N/A',
+                mins: diffMins
+              };
+            })
+            .sort((a, b) => a.mins - b.mins);
+
+          if (validArrivals.length > 0) {
+            totalArrivals += validArrivals.length;
+            html += `
+              <div class="stop-group">
+                <div class="stop-header">📍 ${group.stopLabel}</div>
+                <ul class="bus-list">
+                  ${validArrivals.map(item => `
+                    <li class="bus-item">
+                      <div class="bus-info">
+                        <span class="bus-route">${item.route}</span>
+                        <div class="bus-details">
+                          <span class="bus-dest">To ${item.dest}</span>
+                        </div>
+                      </div>
+                      <div class="bus-eta">
+                        ${item.mins} <span>min${item.mins === 1 ? '' : 's'}</span>
+                      </div>
+                    </li>
+                  `).join('')}
+                </ul>
               </div>
-            </div>
-            <div class="bus-eta">
-              ${item.mins} <span>min${item.mins === 1 ? '' : 's'}</span>
-            </div>
-          </li>
-        `).join('');
+            `;
+          }
+        });
+
+        if (totalArrivals === 0) {
+          busContentEl.innerHTML = '<div class="loading">No scheduled outbound departures soon.</div>';
+        } else {
+          busContentEl.innerHTML = html;
+        }
 
         const updateTime = new Date().toLocaleTimeString('en-US', { 
           hour: '2-digit', 
@@ -381,7 +396,7 @@
 
       } catch (error) {
         console.error('Error fetching Citybus ETA:', error);
-        busListEl.innerHTML = '<li class="error">Failed to load bus times. Will retry...</li>';
+        busContentEl.innerHTML = '<div class="error">Failed to load bus times. Will retry...</div>';
       }
     }
 
