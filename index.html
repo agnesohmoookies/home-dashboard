@@ -28,60 +28,34 @@
       display: flex;
       flex-direction: column;
       height: 100vh;
-      padding: 12px;
-      gap: 12px;
+      padding: 8px;
       overflow: hidden;
-    }
-
-    header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 8px 12px;
-      background: var(--card-bg);
-      border-radius: 12px;
-      border: 1px solid var(--border-color);
-    }
-
-    .time-display {
-      font-size: 1.5rem;
-      font-weight: bold;
-      color: #ffffff; /* White clock color */
-    }
-
-    .date-display {
-      font-size: 0.9rem;
-      color: var(--text-sub);
     }
 
     .container {
       display: flex;
-      flex-direction: column;
+      flex-direction: row; /* Aligns Bus and Calendar side-by-side horizontally */
       flex: 1;
-      gap: 12px;
-      height: calc(100% - 60px);
-    }
-
-    @media (min-width: 600px) {
-      .container {
-        flex-direction: row;
-      }
+      gap: 8px;
+      height: 100%;
+      width: 100%;
     }
 
     .card {
       background: var(--card-bg);
       border-radius: 12px;
       border: 1px solid var(--border-color);
-      padding: 14px;
+      padding: 10px;
       flex: 1;
       display: flex;
       flex-direction: column;
       overflow: hidden;
+      height: 100%;
     }
 
     .card-footer {
       margin-top: auto;
-      padding-top: 8px;
+      padding-top: 4px;
       border-top: 1px solid var(--border-color);
       display: flex;
       justify-content: flex-start;
@@ -89,7 +63,7 @@
     }
 
     .refresh-badge {
-      font-size: 0.75rem;
+      font-size: 0.7rem;
       color: var(--text-sub);
       font-weight: normal;
     }
@@ -99,46 +73,46 @@
       list-style: none;
       overflow-y: auto;
       flex: 1;
-      padding-bottom: 8px;
+      padding-bottom: 4px;
     }
 
     .stop-header {
-      font-size: 1rem;
+      font-size: 0.85rem;
       font-weight: bold;
       color: var(--accent); /* Yellow stop header */
-      padding: 10px 0 6px 0;
+      padding: 6px 0 4px 0;
       border-bottom: 1px solid var(--border-color);
       display: flex;
       align-items: center;
-      gap: 6px;
+      gap: 4px;
     }
 
     .stop-header:not(:first-child) {
-      margin-top: 14px;
+      margin-top: 8px;
     }
 
     .bus-item {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      padding: 8px 0;
+      padding: 5px 0;
       border-bottom: 1px solid #2a2a2a;
     }
 
     .bus-info {
       display: flex;
       align-items: center;
-      gap: 10px;
+      gap: 8px;
     }
 
     .bus-route {
       background: var(--accent);
       color: #000;
       font-weight: bold;
-      padding: 4px 8px;
-      border-radius: 6px;
-      font-size: 1.05rem;
-      min-width: 55px;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 0.9rem;
+      min-width: 45px;
       text-align: center;
     }
 
@@ -148,29 +122,29 @@
     }
 
     .bus-dest {
-      font-size: 0.9rem;
+      font-size: 0.8rem;
       color: var(--text-main);
       font-weight: 500;
     }
 
     .bus-eta {
-      font-size: 1.25rem;
+      font-size: 1.1rem;
       font-weight: bold;
       color: var(--accent-green);
       text-align: right;
     }
 
     .bus-eta span {
-      font-size: 0.8rem;
+      font-size: 0.75rem;
       color: var(--text-sub);
       margin-left: 2px;
     }
 
     .loading, .error {
       color: var(--text-sub);
-      font-size: 0.9rem;
+      font-size: 0.8rem;
       text-align: center;
-      margin-top: 20px;
+      margin-top: 10px;
     }
 
     /* Calendar Container */
@@ -192,13 +166,6 @@
 </head>
 <body>
 
-  <header>
-    <div>
-      <div id="clock" class="time-display">12:00 am</div>
-      <div id="date" class="date-display">Loading date...</div>
-    </div>
-  </header>
-
   <div class="container">
     <!-- Section 1: Bus Arrivals (Citybus) -->
     <div class="card">
@@ -213,7 +180,6 @@
     <!-- Section 2: Son's Schedule -->
     <div class="card">
       <div class="calendar-container">
-        <!-- Google Calendar Agenda view iframe -->
         <iframe 
           id="calendar-iframe"
           src="https://calendar.google.com/calendar/embed?height=600&wkst=2&ctz=Asia%2FHong_Kong&showPrint=0&mode=AGENDA&showTz=0&showDate=0&showNav=0&title&showTabs=0&src=YWduZXNAb2htb29va2llcy5jb20&color=%23039be5" 
@@ -251,23 +217,24 @@
     ];
 
     const REFRESH_INTERVAL = 30000;
+    let lastFetchTime = null;
 
-    // Clock update with 12-hour AM/PM format
-    function updateClock() {
-      const now = new Date();
-      document.getElementById('clock').innerText = now.toLocaleTimeString('en-US', { 
-        hour: '2-digit', 
-        minute: '2-digit', 
-        hour12: true 
-      }).toLowerCase();
-      document.getElementById('date').innerText = now.toLocaleDateString('en-HK', { 
-        weekday: 'short', 
-        month: 'short', 
-        day: 'numeric' 
-      });
+    // Relative Live Time Counter
+    function updateRefreshBadge() {
+      const updatedEl = document.getElementById('last-updated');
+      if (!lastFetchTime) {
+        updatedEl.innerText = "Updating...";
+        return;
+      }
+      const diffSecs = Math.floor((new Date() - lastFetchTime) / 1000);
+      if (diffSecs < 60) {
+        updatedEl.innerText = `Updated ${diffSecs}s ago`;
+      } else {
+        const mins = Math.floor(diffSecs / 60);
+        updatedEl.innerText = `Updated ${mins}m ago`;
+      }
     }
-    setInterval(updateClock, 1000);
-    updateClock();
+    setInterval(updateRefreshBadge, 1000);
 
     async function fetchCitybusData(stopId, route) {
       try {
@@ -279,7 +246,7 @@
         let json = await res.json();
         let items = json.data || [];
         
-        // Batch stop-eta fallback if needed
+        // Batch API Fallback
         if (items.length === 0 && !route) {
           let batchRes = await fetch(`https://rt.data.gov.hk/v1/transport/batch/stop-eta?company_id=CTB&stop_id=${stopId}`);
           if (batchRes.ok) {
@@ -296,7 +263,6 @@
 
     async function fetchBusETA() {
       const busListEl = document.getElementById('bus-list');
-      const updatedEl = document.getElementById('last-updated');
 
       try {
         const fetchRequests = BUS_STOPS.map(async (stop) => {
@@ -314,7 +280,7 @@
         const results = await Promise.all(fetchRequests);
         const combinedData = results.flat();
 
-        // Create stop grouping structure
+        // Structure Groupings
         const stopGroups = {};
         BUS_STOPS.forEach(stop => {
           stopGroups[stop.label] = [];
@@ -330,14 +296,14 @@
           const dest = item.dest_en || item.dest_tc || 'N/A';
           const route = item.route;
 
-          // Exclusions check
+          // Exclusion rules logic
           const stopConf = BUS_STOPS.find(s => s.label === stopLabel);
           if (stopConf && stopConf.excludeDest) {
             const isExcluded = stopConf.excludeDest.some(ex => dest.toLowerCase().includes(ex.toLowerCase()));
             if (isExcluded) return;
           }
 
-          // Group by stopLabel and route
+          // Combine routes inside matching stop header
           let existingRoute = stopGroups[stopLabel].find(r => r.route === route);
           if (!existingRoute) {
             existingRoute = {
@@ -350,32 +316,31 @@
           existingRoute.times.push(diffMins);
         });
 
-        // Generate HTML with correct sorting and grouping
+        // HTML builder with customized layouts
         let htmlContent = '';
         BUS_STOPS.forEach(stop => {
           const routesInStop = stopGroups[stop.label];
 
-          // Sort arrival times for each route
+          // Sort incoming routes
           routesInStop.forEach(r => {
             r.times.sort((a, b) => a - b);
           });
 
-          // Sort routes within stop by nearest arrival time
+          // Sort based on closest arrival time
           routesInStop.sort((a, b) => {
             const aNear = a.times.length > 0 ? a.times[0] : 9999;
             const bNear = b.times.length > 0 ? b.times[0] : 9999;
             return aNear - bNear;
           });
 
-          // Render stop section if there are active routes
           if (routesInStop.length > 0) {
             htmlContent += `<li class="stop-header">📍 ${stop.label}</li>`;
             routesInStop.forEach(r => {
               let etaText = '';
               if (r.times.length === 1) {
-                etaText = `${r.times[0]} <span>min${r.times[0] === 1 ? '' : 's'}</span>`;
+                etaText = `${r.times[0]} <span>mins</span>`;
               } else if (r.times.length >= 2) {
-                etaText = `${r.times[0]}, ${r.times[1]} <span>mins</span>`;
+                etaText = `${r.times[0]} | ${r.times[1]} <span>mins</span>`;
               } else {
                 etaText = `-- <span>mins</span>`;
               }
@@ -403,14 +368,8 @@
         }
 
         busListEl.innerHTML = htmlContent;
-
-        const updateTime = new Date().toLocaleTimeString('en-US', { 
-          hour: '2-digit', 
-          minute: '2-digit', 
-          second: '2-digit',
-          hour12: true 
-        }).toLowerCase();
-        updatedEl.innerText = `Updated ${updateTime}`;
+        lastFetchTime = new Date();
+        updateRefreshBadge();
 
       } catch (error) {
         console.error('Error fetching Citybus ETA:', error);
