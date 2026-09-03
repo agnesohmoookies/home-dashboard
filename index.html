@@ -46,7 +46,7 @@
     .time-display {
       font-size: 1.5rem;
       font-weight: bold;
-      color: var(--accent);
+      color: var(--text-main);
     }
 
     .date-display {
@@ -224,11 +224,14 @@
     // ==========================================
     const BUS_STOPS = [
       { id: "002364", label: "South Horizons", routes: ["592","595","90B","99","171","171P","N90","99X"], 
-    dir: "O" }, 
+    dir: "O",
+    excludeDest: ["South Horizons"]}, 
       { id: "002170", label: "Lei Chak House", routes: ["95C","671","671X"] , 
-    dir: "O"},
+    dir: "O",
+    excludeDest: ["South Horizons"]},
       { id: "002166", label: "Ap Lei Chau", routes: ["90","91"], 
-    dir: "O" }, 
+    dir: "O",
+    excludeDest: ["South Horizons"]}, 
    
     ];
 
@@ -239,7 +242,7 @@
       document.getElementById('clock').innerText = now.toLocaleTimeString('en-HK', { 
         hour: '2-digit', 
         minute: '2-digit', 
-        hour12: false 
+        hour12: true 
       });
       document.getElementById('date').innerText = now.toLocaleDateString('en-HK', { 
         weekday: 'short', 
