@@ -46,7 +46,7 @@
     .time-display {
       font-size: 1.5rem;
       font-weight: bold;
-      color: var(--text-main);
+      color: var(--text-main); /* White color */
     }
 
     .date-display {
@@ -189,7 +189,7 @@
   </header>
 
   <div class="container">
-    <!-- Section 1: Bus Arrivals (Citybus) -->
+    <!-- Section 1: Bus Departures -->
     <div class="card">
       <div class="card-title">
         <span>🚍 Bus Departing in...</span>
@@ -220,39 +220,54 @@
 
   <script>
     // ==========================================
-    // CONFIGURATION: Citybus Stops & Route Filter
+    // CONFIGURATION: Citybus Stops & Exclusions
     // ==========================================
     const BUS_STOPS = [
-      { id: "002364", label: "South Horizons", routes: ["592","595","90B","99","171","171P","N90","99X"], 
-    dir: "O",
-    excludeDest: ["South Horizons"]}, 
-      { id: "002170", label: "Lei Chak House", routes: ["95C","671","671X"] , 
-    dir: "O",
-    excludeDest: ["South Horizons"]},
-      { id: "002166", label: "Ap Lei Chau", routes: ["90","91"], 
-    dir: "O",
-    excludeDest: ["South Horizons"]}, 
-   
+      { 
+        id: "002364", 
+        label: "South Horizons", 
+        routes: ["592","595","90B","99","171","171P","N90","99X"],
+        excludeDest: ["South Horizons"] 
+      }, 
+      { 
+        id: "002170", 
+        label: "Lei Chak House", 
+        routes: ["95C","671","671X"],
+        excludeDest: ["South Horizons", "Ap Lei Chau"] 
+      },
+      { 
+        id: "002166", 
+        label: "Ap Lei Chau", 
+        routes: ["90","91"],
+        excludeDest: ["Ap Lei Chau", "South Horizons"] 
+      }
     ];
 
     const REFRESH_INTERVAL = 30000;
 
+    // ==========================================
+    // CLOCK & DATE (12-Hour AM/PM White Display)
+    // ==========================================
     function updateClock() {
       const now = new Date();
-      document.getElementById('clock').innerText = now.toLocaleTimeString('en-HK', { 
+      document.getElementById('clock').innerText = now.toLocaleTimeString('en-US', { 
         hour: '2-digit', 
         minute: '2-digit', 
         hour12: true 
-      });
+      }).toLowerCase();
+
       document.getElementById('date').innerText = now.toLocaleDateString('en-HK', { 
         weekday: 'short', 
-        month: 'short', 
-        day: 'numeric' 
+        day: 'numeric',
+        month: 'short'
       });
     }
     setInterval(updateClock, 1000);
     updateClock();
 
+    // ==========================================
+    // BUS ETA FETCHING & SUBSTRING FILTERING
+    // ==========================================
     async function fetchCitybusData(stopId, route) {
       try {
         let url = route 
@@ -262,8 +277,7 @@
         if (!res.ok) return [];
         let json = await res.json();
         let items = json.data || [];
-        
-        // If stop-eta returned empty and no route specified, attempt batch stop-eta fallback
+
         if (items.length === 0 && !route) {
           let batchRes = await fetch(`https://rt.data.gov.hk/v1/transport/batch/stop-eta?company_id=CTB&stop_id=${stopId}`);
           if (batchRes.ok) {
@@ -286,16 +300,18 @@
         const fetchRequests = BUS_STOPS.map(async (stop) => {
           let items = [];
           if (stop.routes && stop.routes.length > 0) {
-            // Query each specified route directly for maximum reliability
             const routePromises = stop.routes.map(r => fetchCitybusData(stop.id, r));
             const routeResults = await Promise.all(routePromises);
             items = routeResults.flat();
           } else {
-            // Fetch all routes passing through this stop
             items = await fetchCitybusData(stop.id, null);
           }
 
-          return items.map(item => ({ ...item, stopLabel: stop.label }));
+          return items.map(item => ({ 
+            ...item, 
+            stopLabel: stop.label, 
+            excludeDest: stop.excludeDest || [] 
+          }));
         });
 
         const results = await Promise.all(fetchRequests);
@@ -309,6 +325,19 @@
         const now = new Date();
         const arrivals = combinedData
           .filter(item => item.eta)
+          .filter(item => {
+            if (!item.excludeDest || item.excludeDest.length === 0) return true;
+            const destEn = (item.dest_en || '').toLowerCase();
+            const destTc = (item.dest_tc || '').toLowerCase();
+            
+            // Substring match: removes any destination containing excluded phrases
+            const isExcluded = item.excludeDest.some(ex => {
+              const kw = ex.toLowerCase().trim();
+              return destEn.includes(kw) || destTc.includes(kw);
+            });
+            
+            return !isExcluded;
+          })
           .map(item => {
             const etaDate = new Date(item.eta);
             const diffMins = Math.max(0, Math.round((etaDate - now) / 60000));
@@ -323,7 +352,7 @@
           .slice(0, 8);
 
         if (arrivals.length === 0) {
-          busListEl.innerHTML = '<li class="loading">No scheduled arrivals soon.</li>';
+          busListEl.innerHTML = '<li class="loading">No scheduled outbound departures soon.</li>';
           return;
         }
 
@@ -342,7 +371,12 @@
           </li>
         `).join('');
 
-        const updateTime = new Date().toLocaleTimeString('en-HK', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        const updateTime = new Date().toLocaleTimeString('en-US', { 
+          hour: '2-digit', 
+          minute: '2-digit', 
+          second: '2-digit',
+          hour12: true 
+        }).toLowerCase();
         updatedEl.innerText = `Updated ${updateTime}`;
 
       } catch (error) {
