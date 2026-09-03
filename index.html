@@ -98,9 +98,9 @@
     }
 
     .stop-header {
-      font-size: 1rem;
+      font-size: 1.15rem; /* Slightly larger size */
       font-weight: bold;
-      color: var(--accent); /* Yellow stop header */
+      color: #ffffff; /* Crisp white stop header */
       padding: 8px 0 6px 0;
       border-bottom: 1px solid var(--border-color);
       display: flex;
@@ -307,6 +307,8 @@
     ];
 
     async function fetchCalendarEvents() {
+      const calendarListEl = document.getElementById('calendar-list');
+      
       if (!API_KEY || API_KEY === "YOUR_GOOGLE_API_KEY" || API_KEY.trim() === "") {
         // Fall back gracefully to mock events so you can edit the list directly in the code!
         renderEvents(MOCK_EVENTS);
@@ -334,6 +336,7 @@
 
     function renderEvents(events) {
       const calendarListEl = document.getElementById('calendar-list');
+      
       if (events.length === 0) {
         calendarListEl.innerHTML = '<li class="loading">No events scheduled for today.</li>';
         return;
@@ -466,9 +469,9 @@
               if (r.times.length === 1) {
                 etaText = `${r.times[0]} <span>mins</span>`;
               } else if (r.times.length === 2) {
-                etaText = `${r.times[0]}${sep}${r.times} <span>mins</span>`;
+                etaText = `${r.times[0]}${sep}${r.times[1]} <span>mins</span>`;
               } else if (r.times.length >= 3) {
-                etaText = `${r.times[0]}${sep}${r.times}${sep}${r.times} <span>mins</span>`;
+                etaText = `${r.times[0]}${sep}${r.times[1]}${sep}${r.times[2]} <span>mins</span>`;
               } else {
                 etaText = `-- <span>mins</span>`;
               }
