@@ -187,17 +187,27 @@
     .calendar-item {
       display: flex;
       align-items: flex-start;
-      gap: 12px;
-      padding: 10px 0;
+      gap: 14px;
+      padding: 12px 0;
       border-bottom: 1px solid #2a2a2a;
     }
 
-    .event-time {
-      font-size: 0.85rem;
+    .event-meta {
+      display: flex;
+      flex-direction: column;
+      min-width: 90px;
+    }
+
+    .event-date {
+      font-size: 0.9rem;
       font-weight: bold;
       color: var(--accent); /* Yellow matching stop labels */
-      min-width: 65px;
-      padding-top: 1px;
+    }
+
+    .event-time {
+      font-size: 0.8rem;
+      color: var(--text-sub);
+      margin-top: 2px;
     }
 
     .event-details {
@@ -207,15 +217,24 @@
     }
 
     .event-title {
-      font-size: 0.9rem;
+      font-size: 0.95rem;
       color: var(--text-main);
-      font-weight: 500;
+      font-weight: bold;
+    }
+
+    .event-location {
+      font-size: 0.75rem;
+      color: var(--text-sub);
+      margin-top: 4px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
     }
 
     .event-desc {
       font-size: 0.75rem;
       color: var(--text-sub);
-      margin-top: 3px;
+      margin-top: 4px;
     }
 
     .loading, .error {
@@ -243,11 +262,11 @@
       </div>
     </div>
 
-    <!-- Page 2: Standalone Calendar Schedule (Swipe Right) -->
+    <!-- Page 2: Standalone Apple Calendar Schedule (Swipe Right) -->
     <div class="swipe-page">
       <div class="card">
         <ul id="calendar-list" class="calendar-list">
-          <li class="loading">Loading calendar events...</li>
+          <li class="loading">Loading Apple calendar...</li>
         </ul>
       </div>
     </div>
@@ -258,8 +277,8 @@
     // ==========================================
     // CONFIGURATION
     // ==========================================
-    const API_KEY = "YOUR_GOOGLE_API_KEY"; // Paste your free Google API Key here!
-    const CALENDAR_ID = "agnes@ohmoookies.com"; // Your Google Calendar ID
+    // Apple iCloud Calendar Webcal Link (automatically proxied below)
+    const APPLE_WEBCAL_URL = "https://p157-caldav.icloud.com/published/2/MTMwOTkwNjE2MTEzMDk5MBVgh7XgzUB3sZY0XQZaSFDEDi4SKS88TOR09s9VSsWlwqWcKQffA4rZt6AB35QrgfD7H1bu1ZGSjEkVHN24i8k";
 
     const BUS_STOPS = [
       { 
@@ -277,12 +296,12 @@
       { 
         id: "002166", 
         label: "Ap Lei Chau", 
-        routes: ["90","91","N171"],
+        routes: ["90","91"],
         excludeDest: ["Ap Lei Chau", "South Horizons", "Ap Lei Chau Estate"] 
       }
     ];
 
-    const JOINT_ROUTES = ["171", "171P", "N171", "671", "671X"];
+    const JOINT_ROUTES = ["171", "171P", "671", "671X"];
 
     const REFRESH_INTERVAL = 30000;
     let lastFetchTime = null;
@@ -322,68 +341,132 @@
     setInterval(updateRefreshBadge, 1000);
 
     // ==========================================
-    // CUSTOM GOOGLE CALENDAR FETCHING (Today Only)
+    // APPLE ICLOUD CALENDAR ICS FETCHING & PARSING
     // ==========================================
-    const MOCK_EVENTS = [
-      { summary: "🍳 Breakfast & Get Ready", start: { dateTime: new Date().setHours(7, 30, 0) }, description: "Dress up for school and check morning temperature." },
-      { summary: "🚌 School Bus departure", start: { dateTime: new Date().setHours(8, 15, 0) }, description: "Remind him to grab his lunchbox." },
-      { summary: "🍱 Nutritious Lunch", start: { dateTime: new Date().setHours(12, 30, 0) }, description: "Freshly prepared meal by the helper." },
-      { summary: "📚 Homework & Spellings", start: { dateTime: new Date().setHours(15, 30, 0) }, description: "Practice reading books and spelling words." },
-      { summary: "🚿 Shower & Change", start: { dateTime: new Date().setHours(17, 30, 0) }, description: "Wash up before dinner." },
-      { summary: "🍽️ Dinner Time", start: { dateTime: new Date().setHours(18, 30, 0) }, description: "Family dinner together." }
-    ];
-
-    async function fetchCalendarEvents() {
-      const calendarListEl = document.getElementById('calendar-list');
-      
-      if (!API_KEY || API_KEY === "YOUR_GOOGLE_API_KEY" || API_KEY.trim() === "") {
-        renderEvents(MOCK_EVENTS);
-        return;
+    function parseICSDate(str) {
+      if (!str) return null;
+      const match = str.match(/^(\d{4})(\d{2})(\d{2})(T(\d{2})(\d{2})(\d{2})(Z)?)?/);
+      if (!match) return null;
+      const year = parseInt(match[1]);
+      const month = parseInt(match[2]) - 1;
+      const day = parseInt(match[3]);
+      if (!match[4]) {
+        return new Date(year, month, day); // All day event
       }
-
-      try {
-        const now = new Date();
-        const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
-        const endOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59).toISOString();
-        
-        const url = `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(CALENDAR_ID)}/events?key=${API_KEY}&timeMin=${startOfToday}&timeMax=${endOfToday}&singleEvents=true&orderBy=startTime`;
-
-        const res = await fetch(url);
-        if (!res.ok) throw new Error('API request failed');
-
-        const data = await res.json();
-        renderEvents(data.items || []);
-
-      } catch (error) {
-        console.error('Error fetching Google Calendar:', error);
-        renderEvents(MOCK_EVENTS);
+      const hour = parseInt(match[5]);
+      const min = parseInt(match[6]);
+      const sec = parseInt(match[7]);
+      if (match[8] === 'Z') {
+        return new Date(Date.UTC(year, month, day, hour, min, sec));
+      } else {
+        return new Date(year, month, day, hour, min, sec);
       }
     }
 
-    function renderEvents(events) {
-      const calendarListEl = document.getElementById('calendar-list');
+    function parseICS(icsText) {
+      const events = [];
+      const lines = icsText.split(/\r?\n/);
+      let currentEvent = null;
       
-      if (events.length === 0) {
-        calendarListEl.innerHTML = '<li class="loading">No events scheduled for today.</li>';
-        return;
+      // Unfold folded lines (lines starting with space or tab)
+      const unfoldedLines = [];
+      for (let line of lines) {
+        if (line.startsWith(' ') || line.startsWith('\t')) {
+          if (unfoldedLines.length > 0) {
+            unfoldedLines[unfoldedLines.length - 1] += line.slice(1);
+          }
+        } else {
+          unfoldedLines.push(line);
+        }
       }
 
-      calendarListEl.innerHTML = events.map(event => {
-        const start = event.start.dateTime ? new Date(event.start.dateTime) : null;
-        let timeStr = 'All Day';
-        if (start) {
-          timeStr = start.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }).toLowerCase();
+      for (let line of unfoldedLines) {
+        if (line === 'BEGIN:VEVENT') {
+          currentEvent = {};
+        } else if (line === 'END:VEVENT') {
+          if (currentEvent) {
+            currentEvent.startDate = parseICSDate(currentEvent.startRaw);
+            events.push(currentEvent);
+          }
+          currentEvent = null;
+        } else if (currentEvent) {
+          const match = line.match(/^([^;:]+)(;[^:]+)?:(.*)$/);
+          if (match) {
+            const name = match[1];
+            const val = match[3];
+            // Cleaning escaped characters
+            const cleanVal = val.replace(/\\,/g, ',').replace(/\\;/g, ';').replace(/\\n/g, '\n');
+            if (name === 'SUMMARY') currentEvent.summary = cleanVal;
+            else if (name === 'LOCATION') currentEvent.location = cleanVal;
+            else if (name === 'DESCRIPTION') currentEvent.description = cleanVal;
+            else if (name === 'DTSTART') currentEvent.startRaw = val;
+          }
         }
-        return `
-          <li class="calendar-item">
-            <span class="event-time">${timeStr}</span>
-            <div class="event-details">
-              <span class="event-title">${event.summary}</span>
-              ${event.description ? `<span class="event-desc">${event.description}</span>` : ''}
-            </div>
-          </li>
-        `;
-      }).join('');
+      }
+      return events;
+    }
+
+    async function fetchAppleCalendar() {
+      const calendarListEl = document.getElementById('calendar-list');
+      try {
+        const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(APPLE_WEBCAL_URL)}`;
+        const res = await fetch(proxyUrl);
+        if (!res.ok) throw new Error("iCloud fetch failed");
+        
+        const text = await res.text();
+        const events = parseICS(text);
+        
+        // Filter events from today onwards
+        const todayStart = new Date();
+        todayStart.setHours(0, 0, 0, 0);
+
+        const upcomingEvents = events
+          .filter(e => e.startDate && e.startDate >= todayStart)
+          .sort((a, b) => a.startDate - b.startDate);
+
+        if (upcomingEvents.length === 0) {
+          calendarListEl.innerHTML = '<li class="loading">No upcoming events scheduled.</li>';
+          return;
+        }
+
+        calendarListEl.innerHTML = upcomingEvents.map(event => {
+          const isAllDay = !event.startRaw.includes('T');
+          
+          // Format Date: e.g. "11 Sep (Mon)"
+          const dateStr = event.startDate.toLocaleDateString('en-HK', {
+            day: 'numeric',
+            month: 'short',
+            weekday: 'short'
+          });
+
+          // Format Time: e.g. "10:30 am"
+          const timeStr = isAllDay 
+            ? 'All Day' 
+            : event.startDate.toLocaleTimeString('en-US', {
+                hour: '2-digit',
+                minute: '2-digit',
+                hour12: true
+              }).toLowerCase();
+
+          return `
+            <li class="calendar-item">
+              <div class="event-meta">
+                <span class="event-date">${dateStr}</span>
+                <span class="event-time">${timeStr}</span>
+              </div>
+              <div class="event-details">
+                <span class="event-title">${event.summary || 'No Title'}</span>
+                ${event.location ? `<span class="event-location">📍 ${event.location}</span>` : ''}
+                ${event.description ? `<span class="event-desc">${event.description}</span>` : ''}
+              </div>
+            </li>
+          `;
+        }).join('');
+
+      } catch (e) {
+        console.error("Error loading Apple Calendar:", e);
+        calendarListEl.innerHTML = '<li class="error">Failed to load Apple Calendar. Will retry...</li>';
+      }
     }
 
     // ==========================================
@@ -500,7 +583,7 @@
             if (isExcluded) return;
           }
 
-          // Combine routes inside matching stop header
+          // Combine routes inside matching stop header (grouping KMB and CTB under same route number if they arrive at same stop)
           let existingRoute = stopGroups[stopLabel].find(r => r.route === route);
           if (!existingRoute) {
             existingRoute = {
@@ -536,10 +619,8 @@
               let etaText = '';
               const sep = '<span class="separator"> | </span>';
               
-              // Map display strings based on toggle setting (mins vs 24h clock)
               const formattedTimes = r.times.map(t => {
                 if (displayAs24Hour) {
-                  // Format time to 24-hour HH:MM (e.g. 17:15)
                   const h = String(t.timeObj.getHours()).padStart(2, '0');
                   const m = String(t.timeObj.getMinutes()).padStart(2, '0');
                   return `${h}:${m}`;
@@ -564,7 +645,6 @@
               const nearestCo = r.times[0] ? r.times[0].co : 'CTB';
               const routeClass = nearestCo === 'KMB' ? 'bus-route kmb-route' : 'bus-route';
               
-              // Clean dest: remove any "To " prefix (case-insensitive)
               let cleanDest = r.dest;
               if (cleanDest.toLowerCase().startsWith("to ")) {
                 cleanDest = cleanDest.substring(3);
@@ -606,8 +686,8 @@
     fetchBusETA();
     setInterval(fetchBusETA, REFRESH_INTERVAL);
 
-    fetchCalendarEvents();
-    setInterval(fetchCalendarEvents, 600000); // 10 minutes refresh rate
+    fetchAppleCalendar();
+    setInterval(fetchAppleCalendar, 600000); // 10 minutes refresh rate
   </script>
 </body>
 </html>
