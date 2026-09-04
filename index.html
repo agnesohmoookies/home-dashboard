@@ -1,14 +1,15 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <!-- For Apple/iOS devices -->
-<link rel="apple-touch-icon" href="app-icon.png">
-
-<!-- For Android/Chrome devices -->
-<link rel="icon" sizes="192x192" href="app-icon.png">
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Home Dashboard</title>
+  
+  <!-- For Apple/iOS devices -->
+  <link rel="apple-touch-icon" href="app-icon.png">
+  <!-- For Android/Chrome devices -->
+  <link rel="icon" sizes="192x192" href="app-icon.png">
+
   <style>
     :root {
       --bg-color: #121212;
@@ -259,7 +260,7 @@
     <!-- Page 1: Standalone Bus Schedule -->
     <div class="swipe-page">
       <div class="card">
-        <!-- Clicking anywhere on this list toggles countdown minutes and 24h clock format instantly -->
+        <!-- Tapping anywhere in this list flips the format instantly -->
         <ul id="bus-list" class="bus-list" onclick="toggleFormat()">
           <li class="loading">Fetching live Bus data...</li>
         </ul>
@@ -269,7 +270,7 @@
       </div>
     </div>
 
-    <!-- Page 2: Standalone Apple Calendar Schedule (Swipe Right) -->
+    <!-- Page 2: Standalone Calendar Schedule (Swipe Right) -->
     <div class="swipe-page">
       <div class="card">
         <ul id="calendar-list" class="calendar-list">
@@ -281,6 +282,22 @@
   </div>
 
   <script>
+    // ==========================================
+    // CLIENT SIDE ERROR TRACKING & LOGGING
+    // ==========================================
+    window.onerror = function(message, source, lineno, colno, error) {
+      document.body.innerHTML = `<div style="color:red; padding:20px; font-family:monospace; background:#000; height:100vh; overflow-y:auto;">
+        <h3>⚠️ Dashboard Script Error Detected</h3>
+        <p style="margin-top:10px;">Please take a screenshot of this error and send it to me so I can fix it for you instantly!</p>
+        <hr style="border-color:#333; margin:15px 0;">
+        <p><strong>Message:</strong> ${message}</p>
+        <p><strong>Line:</strong> ${lineno}:${colno}</p>
+        <p><strong>Source:</strong> ${source}</p>
+        <p><strong>Stack:</strong> <pre style="margin-top:5px; color:#a0a0a0; font-size:0.85rem;">${error ? error.stack : 'N/A'}</pre></p>
+      </div>`;
+      return false;
+    };
+
     // ==========================================
     // CONFIGURATION
     // ==========================================
@@ -548,4 +565,197 @@
 
     async function fetchKmbData(route, seqNumber) {
       try {
-        const rawUrl = `https://data.etabu
+        const rawUrl = `https://data.etabus.gov.hk/v1/transport/kmb/route-eta/${route}`;
+        const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(rawUrl)}`;
+        
+        const res = await fetch(proxyUrl);
+        if (!res.ok) return [];
+        const json = await res.json();
+        const data = json.data || [];
+        
+        return data.filter(item => (item.dir === 'O' || item.bound === 'O') && item.seq === seqNumber);
+      } catch (e) {
+        console.warn(`Error fetching KMB data for route ${route}:`, e);
+        return [];
+      }
+    }
+
+    async function fetchBusETA() {
+      if (isFetchingBus) return;
+      isFetchingBus = true;
+
+      try {
+        const fetchRequests = BUS_STOPS.map(async (stop) => {
+          let items = [];
+          if (stop.routes && stop.routes.length > 0) {
+            const routePromises = stop.routes.map(async r => {
+              // 1. Fetch Citybus data
+              let ctbItems = await fetchCitybusData(stop.id, r);
+              ctbItems = ctbItems.map(item => ({ ...item, co: "CTB" }));
+
+              // 2. Fetch KMB data if it is a joint-operated route
+              if (JOINT_ROUTES.includes(r)) {
+                const kmbSeq = getKmbSeq(r, stop.label);
+                if (kmbSeq !== null) {
+                  const kmbData = await fetchKmbData(r, kmbSeq);
+                  const mappedKmb = kmbData.map(k => ({
+                    route: k.route,
+                    dest_en: k.dest_en,
+                    dest_tc: k.dest_tc,
+                    eta: k.eta,
+                    co: "KMB"
+                  }));
+                  ctbItems = ctbItems.concat(mappedKmb);
+                }
+              }
+              return ctbItems;
+            });
+            const routeResults = await Promise.all(routePromises);
+            items = routeResults.flat();
+          } else {
+            items = await fetchCitybusData(stop.id, null);
+          }
+          return items.map(item => ({ ...item, stopLabel: stop.label, excludeDest: stop.excludeDest }));
+        });
+
+        const results = await Promise.all(fetchRequests);
+        
+        // Save the raw response locally so that toggle format renders instantly without a blank flash or reload!
+        cachedBusData = results.flat();
+        lastFetchTime = new Date();
+        renderBusETA();
+
+      } catch (error) {
+        console.error('Error fetching Bus ETA:', error);
+      } finally {
+        isFetchingBus = false;
+      }
+    }
+
+    function renderBusETA() {
+      const busListEl = document.getElementById('bus-list');
+      if (cachedBusData.length === 0 && !lastFetchTime) return;
+
+      // Structure Groupings
+      const stopGroups = {};
+      BUS_STOPS.forEach(stop => {
+        stopGroups[stop.label] = [];
+      });
+
+      const now = new Date();
+      cachedBusData.forEach(item => {
+        if (!item.eta) return;
+
+        const etaDate = new Date(item.eta);
+        const diffMins = Math.max(0, Math.round((etaDate - now) / 60000));
+        const stopLabel = item.stopLabel;
+        
+        let cleanDest = item.dest_en || item.dest_tc || 'N/A';
+        if (cleanDest.toLowerCase().startsWith("to ")) {
+          cleanDest = cleanDest.substring(3);
+        }
+
+        // Exclusion rules logic
+        if (item.excludeDest) {
+          const isExcluded = item.excludeDest.some(ex => cleanDest.toLowerCase().includes(ex.toLowerCase()));
+          if (isExcluded) return;
+        }
+
+        // Combine routes inside matching stop header (grouping KMB and CTB under same route number if they arrive at same stop)
+        let existingRoute = stopGroups[stopLabel].find(r => r.route === item.route);
+        if (!existingRoute) {
+          existingRoute = {
+            route: item.route,
+            dest: cleanDest,
+            times: []
+          };
+          stopGroups[stopLabel].push(existingRoute);
+        }
+        existingRoute.times.push({ mins: diffMins, timeObj: etaDate, co: item.co });
+      });
+
+      // Generate HTML with correct sorting and grouping
+      let htmlContent = '';
+      BUS_STOPS.forEach(stop => {
+        const routesInStop = stopGroups[stop.label];
+
+        // Sort incoming routes
+        routesInStop.forEach(r => {
+          r.times.sort((a, b) => a.mins - b.mins);
+        });
+
+        // Sort based on closest arrival time
+        routesInStop.sort((a, b) => {
+          const aNear = a.times.length > 0 ? a.times[0].mins : 9999;
+          const bNear = b.times.length > 0 ? b.times[0].mins : 9999;
+          return aNear - bNear;
+        });
+
+        if (routesInStop.length > 0) {
+          htmlContent += `<li class="stop-header">📍 ${stop.label}</li>`;
+          routesInStop.forEach(r => {
+            let etaText = '';
+            const sep = '<span class="separator"> | </span>';
+            
+            // Map display strings based on toggle setting (mins vs 24h clock)
+            const formattedTimes = r.times.map(t => {
+              if (displayAs24Hour) {
+                const h = String(t.timeObj.getHours()).padStart(2, '0');
+                const m = String(t.timeObj.getMinutes()).padStart(2, '0');
+                return `${h}:${m}`;
+              } else {
+                return t.mins;
+              }
+            }).slice(0, 3); // Take top 3 departures
+
+            const suffixStr = displayAs24Hour ? "" : " <span>mins</span>";
+
+            if (formattedTimes.length === 3) {
+              etaText = `${formattedTimes[0]}${sep}${formattedTimes[1]}${sep}${formattedTimes[2]}${suffixStr}`;
+            } else if (formattedTimes.length === 2) {
+              etaText = `${formattedTimes[0]}${sep}${formattedTimes[1]}${suffixStr}`;
+            } else if (formattedTimes.length === 1) {
+              etaText = `${formattedTimes[0]}${suffixStr}`;
+            } else {
+              etaText = `--${suffixStr}`;
+            }
+
+            // Determine if KMB or Citybus (if nearest bus is KMB, color-badge KMB red class!)
+            const nearestCo = r.times[0] ? r.times[0].co : 'CTB';
+            const routeClass = nearestCo === 'KMB' ? 'bus-route kmb-route' : 'bus-route';
+
+            htmlContent += `
+              <li class="bus-item">
+                <div class="bus-info">
+                  <span class="${routeClass}">${r.route}</span>
+                  <div class="bus-details">
+                    <span class="bus-dest">${r.dest}</span>
+                  </div>
+                </div>
+                <div class="bus-eta">
+                  ${etaText}
+                </div>
+              </li>
+            `;
+          });
+        }
+      });
+
+      if (htmlContent === '') {
+        busListEl.innerHTML = '<li class="loading">No upcoming departures found.</li>';
+        return;
+      }
+
+      busListEl.innerHTML = htmlContent;
+      updateRefreshBadge();
+    }
+
+    // Initial load and interval setups
+    fetchBusETA();
+    setInterval(fetchBusETA, REFRESH_INTERVAL);
+
+    fetchAppleCalendar();
+    setInterval(fetchAppleCalendar, 600000); // 10 minutes refresh rate
+  </script>
+</body>
+</html>
