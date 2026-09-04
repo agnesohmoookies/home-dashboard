@@ -42,7 +42,7 @@
       scroll-behavior: smooth;
       -webkit-overflow-scrolling: touch; /* Smooth inertia scrolling for iOS */
       scrollbar-width: none; /* Firefox */
-      -ms-overflow-style: none;  /* IE and Edge */
+      -ms-overflow-style: none; /* IE and Edge */
     }
 
     .swipe-container::-webkit-scrollbar {
@@ -93,14 +93,14 @@
       overflow-y: auto;
       flex: 1;
       padding-bottom: 8px;
-      cursor: pointer; /* Makes entire list indicate it's clickable */
-      -webkit-tap-highlight-color: transparent; /* Removes blue mobile tap box */
+      cursor: pointer; /* Whole card is clickable to toggle time format */
+      -webkit-tap-highlight-color: transparent;
     }
 
     .stop-header {
-      font-size: 1.15rem; /* Slightly larger size */
+      font-size: 1.15rem; /* Larger white title */
       font-weight: bold;
-      color: #ffffff; /* Crisp white stop header */
+      color: #ffffff; /* White stop header */
       padding: 8px 0 6px 0;
       border-bottom: 1px solid var(--border-color);
       display: flex;
@@ -116,7 +116,7 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
-      padding: 8px 0;
+      padding: 6px 0;
       border-bottom: 1px solid #2a2a2a;
     }
 
@@ -149,7 +149,7 @@
     }
 
     .bus-dest {
-      font-size: 0.9rem;
+      font-size: 0.85rem;
       color: var(--text-main);
       font-weight: 500;
     }
@@ -251,7 +251,6 @@
     <!-- Page 1: Standalone Bus Schedule -->
     <div class="swipe-page">
       <div class="card">
-        <!-- Tapping ANYWHERE in this list flips the format instantly -->
         <ul id="bus-list" class="bus-list" onclick="toggleFormat()">
           <li class="loading">Fetching live Bus data...</li>
         </ul>
@@ -276,6 +275,7 @@
     // ==========================================
     // CONFIGURATION
     // ==========================================
+    // Apple iCloud Calendar Webcal Link
     const APPLE_WEBCAL_URL = "https://p157-caldav.icloud.com/published/2/MTMwOTkwNjE2MTEzMDk5MBVgh7XgzUB3sZY0XQZaSFDEDi4SKS88TOR09s9VSsWlwqWcKQffA4rZt6AB35QrgfD7H1bu1ZGSjEkVHN24i8k";
 
     const BUS_STOPS = [
@@ -300,15 +300,14 @@
     ];
 
     const JOINT_ROUTES = ["171", "171P", "671", "671X"];
-    const REFRESH_INTERVAL = 30000;
 
-    // Local state logic prevents flashing and enables instant toggles
+    const REFRESH_INTERVAL = 30000;
     let cachedBusData = [];
     let isFetchingBus = false;
     let lastFetchTime = null;
-    let displayAs24Hour = localStorage.getItem('busDisplayFormat') === '24h'; // Remembers your preference!
+    let displayAs24Hour = localStorage.getItem('busDisplayFormat') === '24h';
 
-    // Helper to accurately map KMB sequence numbers
+    // Correct KMB stop sequence mapping
     function getKmbSeq(route, stopLabel) {
       if (route === "171" || route === "171P") {
         if (stopLabel === "South Horizons") return 1;
@@ -342,24 +341,24 @@
     function toggleFormat() {
       displayAs24Hour = !displayAs24Hour;
       localStorage.setItem('busDisplayFormat', displayAs24Hour ? '24h' : 'mins');
-      renderBusETA(); // Instant redraw! No network loading!
+      renderBusETA(); // Instant redraw without re-fetching network
     }
 
     // ==========================================
-    // APPLE ICLOUD CALENDAR ICS FETCHING
+    // APPLE ICLOUD CALENDAR ICS PARSING
     // ==========================================
     function parseICSDate(str) {
       if (!str) return null;
       const match = str.match(/^(\d{4})(\d{2})(\d{2})(T(\d{2})(\d{2})(\d{2})(Z)?)?/);
-      if (! match) return null;
+      if (!match) return null;
       const year = parseInt(match);
       const month = parseInt(match) - 1;
       const day = parseInt(match);
-      if (! match) return new Date(year, month, day); // All day event
+      if (!match) return new Date(year, month, day); // All day event
       const hour = parseInt(match);
       const min = parseInt(match);
-      const sec = parseInt(match);
-      if (match === 'Z') return new Date(Date.UTC(year, month, day, hour, min, sec));
+      const sec = parseInt(match[7]);
+      if (match[8] === 'Z') return new Date(Date.UTC(year, month, day, hour, min, sec));
       return new Date(year, month, day, hour, min, sec);
     }
 
@@ -405,7 +404,7 @@
     async function fetchAppleCalendar() {
       const calendarListEl = document.getElementById('calendar-list');
       try {
-        // Dual Proxy fallback! If CorsProxyio fails, we instantly try AllOrigins.
+        // Dual proxy failover to guarantee live iCloud calendar fetching
         const url1 = `https://corsproxy.io/?${encodeURIComponent(APPLE_WEBCAL_URL)}`;
         const url2 = `https://api.allorigins.win/raw?url=${encodeURIComponent(APPLE_WEBCAL_URL)}`;
         
@@ -415,7 +414,6 @@
             if (!res.ok) throw new Error("Proxy 1 failed");
             text = await res.text();
         } catch(e) {
-            console.warn("Proxy 1 failed, trying Proxy 2 fallback...");
             const res2 = await fetch(url2);
             if (!res2.ok) throw new Error("Proxy 2 failed");
             text = await res2.text();
@@ -435,7 +433,7 @@
         }
 
         calendarListEl.innerHTML = upcomingEvents.map(event => {
-          const isAllDay = !event.startRaw.includes('T');
+          const isAllDay = !event.startRaw || !event.startRaw.includes('T');
           const dateStr = event.startDate.toLocaleDateString('en-HK', { day: 'numeric', month: 'short', weekday: 'short' });
           const timeStr = isAllDay ? 'All Day' : event.startDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }).toLowerCase();
 
@@ -486,7 +484,6 @@
 
     async function fetchKmbData(route, seqNumber) {
       try {
-        // Direct fetch without proxy to prevent flaky rate limits!
         const url = `https://data.etabus.gov.hk/v1/transport/kmb/route-eta/${route}`;
         const res = await fetch(url);
         if (!res.ok) return [];
@@ -534,11 +531,8 @@
         });
 
         const results = await Promise.all(fetchRequests);
-        
-        // Cache the raw data locally so toggles and rerenders are completely instant
         cachedBusData = results.flat();
         lastFetchTime = new Date();
-        
         renderBusETA();
 
       } catch (error) {
@@ -548,7 +542,7 @@
       }
     }
 
-    // Instantly renders html using cached JSON, preventing any flashing!
+    // Instantly renders html using cached JSON to prevent UI flashing
     function renderBusETA() {
         const busListEl = document.getElementById('bus-list');
         if (cachedBusData.length === 0 && !lastFetchTime) return;
@@ -607,7 +601,7 @@
                 } else {
                   return t.mins;
                 }
-              }).slice(0, 3); // Take top 3 departures
+              }).slice(0, 3); // Top 3 departures
 
               const suffixStr = displayAs24Hour ? "" : " <span>mins</span>";
 
