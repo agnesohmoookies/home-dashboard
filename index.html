@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Home Dashboard</title>
   <style>
     :root {
@@ -41,8 +41,6 @@
       scroll-snap-type: x mandatory; /* Force horizontal snapping */
       scroll-behavior: smooth;
       -webkit-overflow-scrolling: touch; /* Smooth inertia scrolling for iOS */
-      
-      /* Hide scrollbars but keep scrolling active */
       scrollbar-width: none; /* Firefox */
       -ms-overflow-style: none;  /* IE and Edge */
     }
@@ -95,6 +93,8 @@
       overflow-y: auto;
       flex: 1;
       padding-bottom: 8px;
+      cursor: pointer; /* Makes entire list indicate it's clickable */
+      -webkit-tap-highlight-color: transparent; /* Removes blue mobile tap box */
     }
 
     .stop-header {
@@ -116,7 +116,7 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
-      padding: 6px 0;
+      padding: 8px 0;
       border-bottom: 1px solid #2a2a2a;
     }
 
@@ -149,7 +149,7 @@
     }
 
     .bus-dest {
-      font-size: 0.85rem;
+      font-size: 0.9rem;
       color: var(--text-main);
       font-weight: 500;
     }
@@ -159,8 +159,6 @@
       font-weight: bold;
       color: var(--accent-green);
       text-align: right;
-      cursor: pointer; /* Clickable toggle */
-      user-select: none;
     }
 
     .bus-eta span {
@@ -253,7 +251,8 @@
     <!-- Page 1: Standalone Bus Schedule -->
     <div class="swipe-page">
       <div class="card">
-        <ul id="bus-list" class="bus-list">
+        <!-- Tapping ANYWHERE in this list flips the format instantly -->
+        <ul id="bus-list" class="bus-list" onclick="toggleFormat()">
           <li class="loading">Fetching live Bus data...</li>
         </ul>
         <div class="card-footer">
@@ -277,7 +276,6 @@
     // ==========================================
     // CONFIGURATION
     // ==========================================
-    // Apple iCloud Calendar Webcal Link (automatically proxied below)
     const APPLE_WEBCAL_URL = "https://p157-caldav.icloud.com/published/2/MTMwOTkwNjE2MTEzMDk5MBVgh7XgzUB3sZY0XQZaSFDEDi4SKS88TOR09s9VSsWlwqWcKQffA4rZt6AB35QrgfD7H1bu1ZGSjEkVHN24i8k";
 
     const BUS_STOPS = [
@@ -302,23 +300,23 @@
     ];
 
     const JOINT_ROUTES = ["171", "171P", "671", "671X"];
-
     const REFRESH_INTERVAL = 30000;
-    let lastFetchTime = null;
-    let displayAs24Hour = false; // Toggle flag: false = Countdown Mins, true = 24h Clock
 
-    // Helper to determine KMB stop sequence for a given route & stop label
+    // Local state logic prevents flashing and enables instant toggles
+    let cachedBusData = [];
+    let isFetchingBus = false;
+    let lastFetchTime = null;
+    let displayAs24Hour = localStorage.getItem('busDisplayFormat') === '24h'; // Remembers your preference!
+
+    // Helper to accurately map KMB sequence numbers
     function getKmbSeq(route, stopLabel) {
       if (route === "171" || route === "171P") {
         if (stopLabel === "South Horizons") return 1;
-        if (stopLabel === "Lei Chak House") return 2;
+        if (stopLabel === "Lei Chak House") return 4;
       }
-      if (route === "671") {
+      if (route === "671" || route === "671X") {
         if (stopLabel === "Ap Lei Chau") return 1;
-        if (stopLabel === "Lei Chak House") return 2;
-      }
-      if (route === "671X") {
-        if (stopLabel === "Lei Chak House") return 1;
+        if (stopLabel === "Lei Chak House") return 7;
       }
       return null;
     }
@@ -340,27 +338,29 @@
     }
     setInterval(updateRefreshBadge, 1000);
 
+    // Toggle interactive clock view
+    function toggleFormat() {
+      displayAs24Hour = !displayAs24Hour;
+      localStorage.setItem('busDisplayFormat', displayAs24Hour ? '24h' : 'mins');
+      renderBusETA(); // Instant redraw! No network loading!
+    }
+
     // ==========================================
-    // APPLE ICLOUD CALENDAR ICS FETCHING & PARSING
+    // APPLE ICLOUD CALENDAR ICS FETCHING
     // ==========================================
     function parseICSDate(str) {
       if (!str) return null;
       const match = str.match(/^(\d{4})(\d{2})(\d{2})(T(\d{2})(\d{2})(\d{2})(Z)?)?/);
-      if (!match) return null;
-      const year = parseInt(match[1]);
-      const month = parseInt(match[2]) - 1;
-      const day = parseInt(match[3]);
-      if (!match[4]) {
-        return new Date(year, month, day); // All day event
-      }
-      const hour = parseInt(match[5]);
-      const min = parseInt(match[6]);
-      const sec = parseInt(match[7]);
-      if (match[8] === 'Z') {
-        return new Date(Date.UTC(year, month, day, hour, min, sec));
-      } else {
-        return new Date(year, month, day, hour, min, sec);
-      }
+      if (! match) return null;
+      const year = parseInt(match);
+      const month = parseInt(match) - 1;
+      const day = parseInt(match);
+      if (! match) return new Date(year, month, day); // All day event
+      const hour = parseInt(match);
+      const min = parseInt(match);
+      const sec = parseInt(match);
+      if (match === 'Z') return new Date(Date.UTC(year, month, day, hour, min, sec));
+      return new Date(year, month, day, hour, min, sec);
     }
 
     function parseICS(icsText) {
@@ -368,13 +368,10 @@
       const lines = icsText.split(/\r?\n/);
       let currentEvent = null;
       
-      // Unfold folded lines (lines starting with space or tab)
       const unfoldedLines = [];
       for (let line of lines) {
         if (line.startsWith(' ') || line.startsWith('\t')) {
-          if (unfoldedLines.length > 0) {
-            unfoldedLines[unfoldedLines.length - 1] += line.slice(1);
-          }
+          if (unfoldedLines.length > 0) unfoldedLines[unfoldedLines.length - 1] += line.slice(1);
         } else {
           unfoldedLines.push(line);
         }
@@ -392,10 +389,9 @@
         } else if (currentEvent) {
           const match = line.match(/^([^;:]+)(;[^:]+)?:(.*)$/);
           if (match) {
-            const name = match[1];
-            const val = match[3];
-            // Cleaning escaped characters
-            const cleanVal = val.replace(/\\,/g, ',').replace(/\\;/g, ';').replace(/\\n/g, '\n');
+            const name = match;
+            const val = match;
+            const cleanVal = val.replace(/\\,/g, ',').replace(/\\;/g, ';').replace(/\\n/g, '<br/>');
             if (name === 'SUMMARY') currentEvent.summary = cleanVal;
             else if (name === 'LOCATION') currentEvent.location = cleanVal;
             else if (name === 'DESCRIPTION') currentEvent.description = cleanVal;
@@ -409,14 +405,23 @@
     async function fetchAppleCalendar() {
       const calendarListEl = document.getElementById('calendar-list');
       try {
-        const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(APPLE_WEBCAL_URL)}`;
-        const res = await fetch(proxyUrl);
-        if (!res.ok) throw new Error("iCloud fetch failed");
+        // Dual Proxy fallback! If CorsProxyio fails, we instantly try AllOrigins.
+        const url1 = `https://corsproxy.io/?${encodeURIComponent(APPLE_WEBCAL_URL)}`;
+        const url2 = `https://api.allorigins.win/raw?url=${encodeURIComponent(APPLE_WEBCAL_URL)}`;
         
-        const text = await res.text();
+        let text = "";
+        try {
+            const res = await fetch(url1);
+            if (!res.ok) throw new Error("Proxy 1 failed");
+            text = await res.text();
+        } catch(e) {
+            console.warn("Proxy 1 failed, trying Proxy 2 fallback...");
+            const res2 = await fetch(url2);
+            if (!res2.ok) throw new Error("Proxy 2 failed");
+            text = await res2.text();
+        }
+        
         const events = parseICS(text);
-        
-        // Filter events from today onwards
         const todayStart = new Date();
         todayStart.setHours(0, 0, 0, 0);
 
@@ -431,22 +436,8 @@
 
         calendarListEl.innerHTML = upcomingEvents.map(event => {
           const isAllDay = !event.startRaw.includes('T');
-          
-          // Format Date: e.g. "11 Sep (Mon)"
-          const dateStr = event.startDate.toLocaleDateString('en-HK', {
-            day: 'numeric',
-            month: 'short',
-            weekday: 'short'
-          });
-
-          // Format Time: e.g. "10:30 am"
-          const timeStr = isAllDay 
-            ? 'All Day' 
-            : event.startDate.toLocaleTimeString('en-US', {
-                hour: '2-digit',
-                minute: '2-digit',
-                hour12: true
-              }).toLowerCase();
+          const dateStr = event.startDate.toLocaleDateString('en-HK', { day: 'numeric', month: 'short', weekday: 'short' });
+          const timeStr = isAllDay ? 'All Day' : event.startDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }).toLowerCase();
 
           return `
             <li class="calendar-item">
@@ -482,7 +473,6 @@
         let json = await res.json();
         let items = json.data || [];
         
-        // Batch API Fallback
         if (items.length === 0 && !route) {
           let batchRes = await fetch(`https://rt.data.gov.hk/v1/transport/batch/stop-eta?company_id=CTB&stop_id=${stopId}`);
           if (batchRes.ok) {
@@ -491,48 +481,34 @@
           }
         }
         return items;
-      } catch (e) {
-        console.warn(`Error fetching Citybus data for stop ${stopId}:`, e);
-        return [];
-      }
+      } catch (e) { return []; }
     }
 
     async function fetchKmbData(route, seqNumber) {
       try {
-        const rawUrl = `https://data.etabus.gov.hk/v1/transport/kmb/route-eta/${route}`;
-        const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(rawUrl)}`;
-        
-        const res = await fetch(proxyUrl);
+        // Direct fetch without proxy to prevent flaky rate limits!
+        const url = `https://data.etabus.gov.hk/v1/transport/kmb/route-eta/${route}`;
+        const res = await fetch(url);
         if (!res.ok) return [];
         const json = await res.json();
         const data = json.data || [];
         
-        return data.filter(item => (item.dir === 'O' || item.bound === 'O') && item.seq === seqNumber);
-      } catch (e) {
-        console.warn(`Error fetching KMB data for route ${route}:`, e);
-        return [];
-      }
-    }
-
-    // Toggle interactive clock view
-    function toggleFormat() {
-      displayAs24Hour = !displayAs24Hour;
-      fetchBusETA(); // Instant redraw
+        return data.filter(item => (item.dir === 'O' || item.bound === 'O' || item.bound === '1') && item.seq === seqNumber);
+      } catch (e) { return []; }
     }
 
     async function fetchBusETA() {
-      const busListEl = document.getElementById('bus-list');
+      if (isFetchingBus) return;
+      isFetchingBus = true;
 
       try {
         const fetchRequests = BUS_STOPS.map(async (stop) => {
           let items = [];
           if (stop.routes && stop.routes.length > 0) {
             const routePromises = stop.routes.map(async r => {
-              // 1. Fetch Citybus data
               let ctbItems = await fetchCitybusData(stop.id, r);
               ctbItems = ctbItems.map(item => ({ ...item, co: "CTB" }));
 
-              // 2. Fetch KMB data if it is a joint-operated route
               if (JOINT_ROUTES.includes(r)) {
                 const kmbSeq = getKmbSeq(r, stop.label);
                 if (kmbSeq !== null) {
@@ -554,59 +530,63 @@
           } else {
             items = await fetchCitybusData(stop.id, null);
           }
-          return items.map(item => ({ ...item, stopLabel: stop.label }));
+          return items.map(item => ({ ...item, stopLabel: stop.label, excludeDest: stop.excludeDest }));
         });
 
         const results = await Promise.all(fetchRequests);
-        const combinedData = results.flat();
+        
+        // Cache the raw data locally so toggles and rerenders are completely instant
+        cachedBusData = results.flat();
+        lastFetchTime = new Date();
+        
+        renderBusETA();
 
-        // Structure Groupings
+      } catch (error) {
+        console.error('Error fetching Bus ETA:', error);
+      } finally {
+        isFetchingBus = false;
+      }
+    }
+
+    // Instantly renders html using cached JSON, preventing any flashing!
+    function renderBusETA() {
+        const busListEl = document.getElementById('bus-list');
+        if (cachedBusData.length === 0 && !lastFetchTime) return;
+
         const stopGroups = {};
-        BUS_STOPS.forEach(stop => {
-          stopGroups[stop.label] = [];
-        });
-
+        BUS_STOPS.forEach(stop => stopGroups[stop.label] = []);
         const now = new Date();
-        combinedData.forEach(item => {
+
+        cachedBusData.forEach(item => {
           if (!item.eta) return;
 
           const etaDate = new Date(item.eta);
           const diffMins = Math.max(0, Math.round((etaDate - now) / 60000));
           const stopLabel = item.stopLabel;
-          const dest = item.dest_en || item.dest_tc || 'N/A';
-          const route = item.route;
+          
+          let cleanDest = item.dest_en || item.dest_tc || 'N/A';
+          if (cleanDest.toLowerCase().startsWith("to ")) {
+            cleanDest = cleanDest.substring(3);
+          }
 
-          // Exclusion rules logic
-          const stopConf = BUS_STOPS.find(s => s.label === stopLabel);
-          if (stopConf && stopConf.excludeDest) {
-            const isExcluded = stopConf.excludeDest.some(ex => dest.toLowerCase().includes(ex.toLowerCase()));
+          if (item.excludeDest) {
+            const isExcluded = item.excludeDest.some(ex => cleanDest.toLowerCase().includes(ex.toLowerCase()));
             if (isExcluded) return;
           }
 
-          // Combine routes inside matching stop header (grouping KMB and CTB under same route number if they arrive at same stop)
-          let existingRoute = stopGroups[stopLabel].find(r => r.route === route);
+          let existingRoute = stopGroups[stopLabel].find(r => r.route === item.route);
           if (!existingRoute) {
-            existingRoute = {
-              route: route,
-              dest: dest,
-              times: []
-            };
+            existingRoute = { route: item.route, dest: cleanDest, times: [] };
             stopGroups[stopLabel].push(existingRoute);
           }
           existingRoute.times.push({ mins: diffMins, timeObj: etaDate, co: item.co });
         });
 
-        // Generate HTML with correct sorting and grouping
         let htmlContent = '';
         BUS_STOPS.forEach(stop => {
           const routesInStop = stopGroups[stop.label];
 
-          // Sort incoming routes
-          routesInStop.forEach(r => {
-            r.times.sort((a, b) => a.mins - b.mins);
-          });
-
-          // Sort based on closest arrival time
+          routesInStop.forEach(r => r.times.sort((a, b) => a.mins - b.mins));
           routesInStop.sort((a, b) => {
             const aNear = a.times.length > 0 ? a.times[0].mins : 9999;
             const bNear = b.times.length > 0 ? b.times[0].mins : 9999;
@@ -631,34 +611,28 @@
 
               const suffixStr = displayAs24Hour ? "" : " <span>mins</span>";
 
-              if (formattedTimes.length === 3) {
-                etaText = `${formattedTimes[0]}${sep}${formattedTimes[1]}${sep}${formattedTimes[2]}${suffixStr}`;
+              if (formattedTimes.length >= 3) {
+                etaText = `${formattedTimes[0]}${sep}${formattedTimes}${sep}${formattedTimes}${suffixStr}`;
               } else if (formattedTimes.length === 2) {
-                etaText = `${formattedTimes[0]}${sep}${formattedTimes[1]}${suffixStr}`;
+                etaText = `${formattedTimes[0]}${sep}${formattedTimes}${suffixStr}`;
               } else if (formattedTimes.length === 1) {
                 etaText = `${formattedTimes[0]}${suffixStr}`;
               } else {
                 etaText = `--${suffixStr}`;
               }
 
-              // Determine nearest operator & clean dest name (Removing "To " prefix)
               const nearestCo = r.times[0] ? r.times[0].co : 'CTB';
               const routeClass = nearestCo === 'KMB' ? 'bus-route kmb-route' : 'bus-route';
-              
-              let cleanDest = r.dest;
-              if (cleanDest.toLowerCase().startsWith("to ")) {
-                cleanDest = cleanDest.substring(3);
-              }
 
               htmlContent += `
                 <li class="bus-item">
                   <div class="bus-info">
                     <span class="${routeClass}">${r.route}</span>
                     <div class="bus-details">
-                      <span class="bus-dest">${cleanDest}</span>
+                      <span class="bus-dest">${r.dest}</span>
                     </div>
                   </div>
-                  <div class="bus-eta" onclick="toggleFormat()">
+                  <div class="bus-eta">
                     ${etaText}
                   </div>
                 </li>
@@ -669,17 +643,10 @@
 
         if (htmlContent === '') {
           busListEl.innerHTML = '<li class="loading">No upcoming departures found.</li>';
-          return;
+        } else {
+          busListEl.innerHTML = htmlContent;
         }
-
-        busListEl.innerHTML = htmlContent;
-        lastFetchTime = new Date();
         updateRefreshBadge();
-
-      } catch (error) {
-        console.error('Error fetching Bus ETA:', error);
-        busListEl.innerHTML = '<li class="error">Failed to load bus times. Will retry...</li>';
-      }
     }
 
     // Initial load and interval setups
