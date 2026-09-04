@@ -41,8 +41,10 @@
       scroll-snap-type: x mandatory; /* Force horizontal snapping */
       scroll-behavior: smooth;
       -webkit-overflow-scrolling: touch; /* Smooth inertia scrolling for iOS */
+      
+      /* Hide scrollbars but keep scrolling active */
       scrollbar-width: none; /* Firefox */
-      -ms-overflow-style: none; /* IE and Edge */
+      -ms-overflow-style: none;  /* IE and Edge */
     }
 
     .swipe-container::-webkit-scrollbar {
@@ -93,14 +95,15 @@
       overflow-y: auto;
       flex: 1;
       padding-bottom: 8px;
-      cursor: pointer; /* Whole card is clickable to toggle time format */
-      -webkit-tap-highlight-color: transparent;
+      cursor: pointer; /* Clickable list indicator */
+      touch-action: manipulation; /* Removes 300ms click delay on mobile */
+      -webkit-tap-highlight-color: transparent; /* Removes tap highlight box */
     }
 
     .stop-header {
-      font-size: 1.15rem; /* Larger white title */
+      font-size: 1.15rem; /* Slightly larger size */
       font-weight: bold;
-      color: #ffffff; /* White stop header */
+      color: #ffffff; /* Crisp white stop header */
       padding: 8px 0 6px 0;
       border-bottom: 1px solid var(--border-color);
       display: flex;
@@ -116,7 +119,7 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
-      padding: 6px 0;
+      padding: 8px 0;
       border-bottom: 1px solid #2a2a2a;
     }
 
@@ -149,7 +152,7 @@
     }
 
     .bus-dest {
-      font-size: 0.85rem;
+      font-size: 0.9rem;
       color: var(--text-main);
       font-weight: 500;
     }
@@ -251,6 +254,7 @@
     <!-- Page 1: Standalone Bus Schedule -->
     <div class="swipe-page">
       <div class="card">
+        <!-- Clicking anywhere on this list toggles countdown minutes and 24h clock format instantly -->
         <ul id="bus-list" class="bus-list" onclick="toggleFormat()">
           <li class="loading">Fetching live Bus data...</li>
         </ul>
@@ -302,12 +306,14 @@
     const JOINT_ROUTES = ["171", "171P", "671", "671X"];
 
     const REFRESH_INTERVAL = 30000;
+    
+    // Memory Cache logic ensures completely silent background updates
     let cachedBusData = [];
     let isFetchingBus = false;
     let lastFetchTime = null;
-    let displayAs24Hour = localStorage.getItem('busDisplayFormat') === '24h';
+    let displayAs24Hour = localStorage.getItem('busDisplayFormat') === '24h'; // Persists toggle preference!
 
-    // Correct KMB stop sequence mapping
+    // Helper to determine KMB stop sequence for a given route & stop label
     function getKmbSeq(route, stopLabel) {
       if (route === "171" || route === "171P") {
         if (stopLabel === "South Horizons") return 1;
@@ -341,36 +347,44 @@
     function toggleFormat() {
       displayAs24Hour = !displayAs24Hour;
       localStorage.setItem('busDisplayFormat', displayAs24Hour ? '24h' : 'mins');
-      renderBusETA(); // Instant redraw without re-fetching network
+      renderBusETA(); // Redraws instantly from cache without trigger loading states!
     }
 
     // ==========================================
-    // APPLE ICLOUD CALENDAR ICS PARSING
+    // APPLE ICLOUD CALENDAR ICS FETCHING & PARSING
     // ==========================================
     function parseICSDate(str) {
       if (!str) return null;
       const match = str.match(/^(\d{4})(\d{2})(\d{2})(T(\d{2})(\d{2})(\d{2})(Z)?)?/);
       if (!match) return null;
-      const year = parseInt(match);
-      const month = parseInt(match) - 1;
-      const day = parseInt(match);
-      if (!match) return new Date(year, month, day); // All day event
-      const hour = parseInt(match);
-      const min = parseInt(match);
+      const year = parseInt(match[1]);
+      const month = parseInt(match[2]) - 1;
+      const day = parseInt(match[3]);
+      if (!match[4]) {
+        return new Date(year, month, day); // All day event
+      }
+      const hour = parseInt(match[5]);
+      const min = parseInt(match[6]);
       const sec = parseInt(match[7]);
-      if (match[8] === 'Z') return new Date(Date.UTC(year, month, day, hour, min, sec));
-      return new Date(year, month, day, hour, min, sec);
+      if (match[8] === 'Z') {
+        return new Date(Date.UTC(year, month, day, hour, min, sec));
+      } else {
+        return new Date(year, month, day, hour, min, sec);
+      }
     }
 
     function parseICS(icsText) {
       const events = [];
-      const lines = icsText.split(/\r?\n/);
+      const lines = icsText.split(/\r/\n/);
       let currentEvent = null;
       
+      // Unfold folded lines (lines starting with space or tab)
       const unfoldedLines = [];
       for (let line of lines) {
         if (line.startsWith(' ') || line.startsWith('\t')) {
-          if (unfoldedLines.length > 0) unfoldedLines[unfoldedLines.length - 1] += line.slice(1);
+          if (unfoldedLines.length > 0) {
+            unfoldedLines[unfoldedLines.length - 1] += line.slice(1);
+          }
         } else {
           unfoldedLines.push(line);
         }
@@ -388,9 +402,10 @@
         } else if (currentEvent) {
           const match = line.match(/^([^;:]+)(;[^:]+)?:(.*)$/);
           if (match) {
-            const name = match;
-            const val = match;
-            const cleanVal = val.replace(/\\,/g, ',').replace(/\\;/g, ';').replace(/\\n/g, '<br/>');
+            const name = match[1];
+            const val = match[3];
+            // Cleaning escaped characters
+            const cleanVal = val.replace(/\\,/g, ',').replace(/\\;/g, ';').replace(/\\n/g, '\n');
             if (name === 'SUMMARY') currentEvent.summary = cleanVal;
             else if (name === 'LOCATION') currentEvent.location = cleanVal;
             else if (name === 'DESCRIPTION') currentEvent.description = cleanVal;
@@ -403,23 +418,49 @@
 
     async function fetchAppleCalendar() {
       const calendarListEl = document.getElementById('calendar-list');
-      try {
-        // Dual proxy failover to guarantee live iCloud calendar fetching
-        const url1 = `https://corsproxy.io/?${encodeURIComponent(APPLE_WEBCAL_URL)}`;
-        const url2 = `https://api.allorigins.win/raw?url=${encodeURIComponent(APPLE_WEBCAL_URL)}`;
-        
-        let text = "";
+      // We will try several CORS proxies to ensure 100% up-time and bypass iCloud blocks
+      const proxies = [
+        url => `https://corsproxy.io/?${encodeURIComponent(url)}`,
+        url => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
+        url => `https://thingproxy.freeboard.io/fetch/${url}`
+      ];
+
+      let text = "";
+      let success = false;
+
+      for (let getProxy of proxies) {
         try {
-            const res = await fetch(url1);
-            if (!res.ok) throw new Error("Proxy 1 failed");
+          const proxyUrl = getProxy(APPLE_WEBCAL_URL);
+          const res = await fetch(proxyUrl);
+          if (res.ok) {
             text = await res.text();
-        } catch(e) {
-            const res2 = await fetch(url2);
-            if (!res2.ok) throw new Error("Proxy 2 failed");
-            text = await res2.text();
+            if (text.includes("BEGIN:VCALENDAR")) {
+              success = true;
+              break;
+            }
+          }
+        } catch (err) {
+          console.warn("Proxy attempt failed:", err);
         }
-        
+      }
+
+      if (!success) {
+        // Direct fetch as fallback
+        try {
+          const res = await fetch(APPLE_WEBCAL_URL.replace("webcal://", "https://"));
+          if (res.ok) {
+            text = await res.text();
+            success = true;
+          }
+        } catch (err) {
+          console.error("All calendar fetches failed:", err);
+        }
+      }
+
+      if (success && text) {
         const events = parseICS(text);
+        
+        // Filter events from today onwards
         const todayStart = new Date();
         todayStart.setHours(0, 0, 0, 0);
 
@@ -433,9 +474,23 @@
         }
 
         calendarListEl.innerHTML = upcomingEvents.map(event => {
-          const isAllDay = !event.startRaw || !event.startRaw.includes('T');
-          const dateStr = event.startDate.toLocaleDateString('en-HK', { day: 'numeric', month: 'short', weekday: 'short' });
-          const timeStr = isAllDay ? 'All Day' : event.startDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }).toLowerCase();
+          const isAllDay = !event.startRaw.includes('T');
+          
+          // Format Date: e.g. "11 Sep (Mon)"
+          const dateStr = event.startDate.toLocaleDateString('en-HK', {
+            day: 'numeric',
+            month: 'short',
+            weekday: 'short'
+          });
+
+          // Format Time: e.g. "10:30 am"
+          const timeStr = isAllDay 
+            ? 'All Day' 
+            : event.startDate.toLocaleTimeString('en-US', {
+                hour: '2-digit',
+                minute: '2-digit',
+                hour12: true
+              }).toLowerCase();
 
           return `
             <li class="calendar-item">
@@ -451,9 +506,7 @@
             </li>
           `;
         }).join('');
-
-      } catch (e) {
-        console.error("Error loading Apple Calendar:", e);
+      } else {
         calendarListEl.innerHTML = '<li class="error">Failed to load Apple Calendar. Will retry...</li>';
       }
     }
@@ -471,6 +524,7 @@
         let json = await res.json();
         let items = json.data || [];
         
+        // Batch API Fallback
         if (items.length === 0 && !route) {
           let batchRes = await fetch(`https://rt.data.gov.hk/v1/transport/batch/stop-eta?company_id=CTB&stop_id=${stopId}`);
           if (batchRes.ok) {
@@ -479,19 +533,27 @@
           }
         }
         return items;
-      } catch (e) { return []; }
+      } catch (e) {
+        console.warn(`Error fetching Citybus data for stop ${stopId}:`, e);
+        return [];
+      }
     }
 
     async function fetchKmbData(route, seqNumber) {
       try {
-        const url = `https://data.etabus.gov.hk/v1/transport/kmb/route-eta/${route}`;
-        const res = await fetch(url);
+        const rawUrl = `https://data.etabus.gov.hk/v1/transport/kmb/route-eta/${route}`;
+        const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(rawUrl)}`;
+        
+        const res = await fetch(proxyUrl);
         if (!res.ok) return [];
         const json = await res.json();
         const data = json.data || [];
         
-        return data.filter(item => (item.dir === 'O' || item.bound === 'O' || item.bound === '1') && item.seq === seqNumber);
-      } catch (e) { return []; }
+        return data.filter(item => (item.dir === 'O' || item.bound === 'O') && item.seq === seqNumber);
+      } catch (e) {
+        console.warn(`Error fetching KMB data for route ${route}:`, e);
+        return [];
+      }
     }
 
     async function fetchBusETA() {
@@ -503,9 +565,11 @@
           let items = [];
           if (stop.routes && stop.routes.length > 0) {
             const routePromises = stop.routes.map(async r => {
+              // 1. Fetch Citybus data
               let ctbItems = await fetchCitybusData(stop.id, r);
               ctbItems = ctbItems.map(item => ({ ...item, co: "CTB" }));
 
+              // 2. Fetch KMB data if it is a joint-operated route
               if (JOINT_ROUTES.includes(r)) {
                 const kmbSeq = getKmbSeq(r, stop.label);
                 if (kmbSeq !== null) {
@@ -531,6 +595,8 @@
         });
 
         const results = await Promise.all(fetchRequests);
+        
+        // Save the raw response locally so that toggle format renders instantly without a blank flash or reload!
         cachedBusData = results.flat();
         lastFetchTime = new Date();
         renderBusETA();
@@ -542,113 +608,4 @@
       }
     }
 
-    // Instantly renders html using cached JSON to prevent UI flashing
-    function renderBusETA() {
-        const busListEl = document.getElementById('bus-list');
-        if (cachedBusData.length === 0 && !lastFetchTime) return;
-
-        const stopGroups = {};
-        BUS_STOPS.forEach(stop => stopGroups[stop.label] = []);
-        const now = new Date();
-
-        cachedBusData.forEach(item => {
-          if (!item.eta) return;
-
-          const etaDate = new Date(item.eta);
-          const diffMins = Math.max(0, Math.round((etaDate - now) / 60000));
-          const stopLabel = item.stopLabel;
-          
-          let cleanDest = item.dest_en || item.dest_tc || 'N/A';
-          if (cleanDest.toLowerCase().startsWith("to ")) {
-            cleanDest = cleanDest.substring(3);
-          }
-
-          if (item.excludeDest) {
-            const isExcluded = item.excludeDest.some(ex => cleanDest.toLowerCase().includes(ex.toLowerCase()));
-            if (isExcluded) return;
-          }
-
-          let existingRoute = stopGroups[stopLabel].find(r => r.route === item.route);
-          if (!existingRoute) {
-            existingRoute = { route: item.route, dest: cleanDest, times: [] };
-            stopGroups[stopLabel].push(existingRoute);
-          }
-          existingRoute.times.push({ mins: diffMins, timeObj: etaDate, co: item.co });
-        });
-
-        let htmlContent = '';
-        BUS_STOPS.forEach(stop => {
-          const routesInStop = stopGroups[stop.label];
-
-          routesInStop.forEach(r => r.times.sort((a, b) => a.mins - b.mins));
-          routesInStop.sort((a, b) => {
-            const aNear = a.times.length > 0 ? a.times[0].mins : 9999;
-            const bNear = b.times.length > 0 ? b.times[0].mins : 9999;
-            return aNear - bNear;
-          });
-
-          if (routesInStop.length > 0) {
-            htmlContent += `<li class="stop-header">📍 ${stop.label}</li>`;
-            routesInStop.forEach(r => {
-              let etaText = '';
-              const sep = '<span class="separator"> | </span>';
-              
-              const formattedTimes = r.times.map(t => {
-                if (displayAs24Hour) {
-                  const h = String(t.timeObj.getHours()).padStart(2, '0');
-                  const m = String(t.timeObj.getMinutes()).padStart(2, '0');
-                  return `${h}:${m}`;
-                } else {
-                  return t.mins;
-                }
-              }).slice(0, 3); // Top 3 departures
-
-              const suffixStr = displayAs24Hour ? "" : " <span>mins</span>";
-
-              if (formattedTimes.length >= 3) {
-                etaText = `${formattedTimes[0]}${sep}${formattedTimes}${sep}${formattedTimes}${suffixStr}`;
-              } else if (formattedTimes.length === 2) {
-                etaText = `${formattedTimes[0]}${sep}${formattedTimes}${suffixStr}`;
-              } else if (formattedTimes.length === 1) {
-                etaText = `${formattedTimes[0]}${suffixStr}`;
-              } else {
-                etaText = `--${suffixStr}`;
-              }
-
-              const nearestCo = r.times[0] ? r.times[0].co : 'CTB';
-              const routeClass = nearestCo === 'KMB' ? 'bus-route kmb-route' : 'bus-route';
-
-              htmlContent += `
-                <li class="bus-item">
-                  <div class="bus-info">
-                    <span class="${routeClass}">${r.route}</span>
-                    <div class="bus-details">
-                      <span class="bus-dest">${r.dest}</span>
-                    </div>
-                  </div>
-                  <div class="bus-eta">
-                    ${etaText}
-                  </div>
-                </li>
-              `;
-            });
-          }
-        });
-
-        if (htmlContent === '') {
-          busListEl.innerHTML = '<li class="loading">No upcoming departures found.</li>';
-        } else {
-          busListEl.innerHTML = htmlContent;
-        }
-        updateRefreshBadge();
-    }
-
-    // Initial load and interval setups
-    fetchBusETA();
-    setInterval(fetchBusETA, REFRESH_INTERVAL);
-
-    fetchAppleCalendar();
-    setInterval(fetchAppleCalendar, 600000); // 10 minutes refresh rate
-  </script>
-</body>
-</html>
+    function renderBusETA(
