@@ -47,8 +47,6 @@
       scroll-snap-type: x mandatory; /* Force horizontal snapping */
       scroll-behavior: smooth;
       -webkit-overflow-scrolling: touch; /* Smooth inertia scrolling for iOS */
-      
-      /* Hide scrollbars but keep scrolling active */
       scrollbar-width: none; /* Firefox */
       -ms-overflow-style: none;  /* IE and Edge */
     }
@@ -191,29 +189,58 @@
       padding-bottom: 4px;
     }
 
+    .day-group-header {
+      font-size: 1.05rem;
+      font-weight: bold;
+      color: #ffffff; /* White day header */
+      padding: 10px 8px 6px 8px;
+      background: #282828;
+      border-radius: 6px;
+      margin-top: 12px;
+      margin-bottom: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .day-group-header:first-child {
+      margin-top: 0;
+    }
+
     .calendar-item {
       display: flex;
       align-items: flex-start;
-      gap: 14px;
-      padding: 12px 0;
+      gap: 12px;
+      padding: 10px 8px;
       border-bottom: 1px solid #2a2a2a;
+      border-left: 4px solid var(--accent); /* Default color indicator */
+      margin-bottom: 4px;
+      border-radius: 4px;
+      background: #181818;
     }
 
     .event-meta {
       display: flex;
       flex-direction: column;
-      min-width: 90px;
+      min-width: 100px;
     }
 
     .event-date {
       font-size: 0.9rem;
       font-weight: bold;
-      color: var(--accent); /* Yellow matching stop labels */
+      color: #ffffff; /* White date text as requested */
     }
 
     .event-time {
       font-size: 0.8rem;
       color: var(--text-sub);
+      margin-top: 2px;
+    }
+
+    .event-duration {
+      font-size: 0.75rem;
+      color: var(--accent-green);
+      font-weight: 600;
       margin-top: 2px;
     }
 
@@ -244,6 +271,17 @@
       margin-top: 4px;
     }
 
+    .no-event-today {
+      padding: 12px 10px;
+      color: #ff9800; /* Subtle orange alert */
+      font-size: 0.9rem;
+      font-weight: bold;
+      background: #252010;
+      border-radius: 6px;
+      border: 1px dashed #ff9800;
+      margin-bottom: 10px;
+    }
+
     .loading, .error {
       color: var(--text-sub);
       font-size: 0.85rem;
@@ -260,7 +298,7 @@
     <!-- Page 1: Standalone Bus Schedule -->
     <div class="swipe-page">
       <div class="card">
-        <!-- Tapping anywhere on this list toggles countdown minutes and 24h clock format instantly -->
+        <!-- Tapping anywhere in this list flips the format instantly -->
         <ul id="bus-list" class="bus-list" onclick="toggleFormat()">
           <li class="loading">Fetching live Bus data...</li>
         </ul>
@@ -301,7 +339,7 @@
     // ==========================================
     // CONFIGURATION
     // ==========================================
-    const API_KEY = "AIzaSyBBkUBfCpaClMZDhEnBat5E0H69UhgZ_sg"; // Paste your free Google API Key here!
+    const API_KEY = "YOUR_GOOGLE_API_KEY"; // Paste your free Google API Key here!
     const CALENDAR_ID = "agnes@ohmoookies.com"; // Your Google Calendar ID
 
     const BUS_STOPS = [
@@ -327,15 +365,28 @@
 
     const JOINT_ROUTES = ["171", "171P", "671", "671X"];
 
+    // Official Google Calendar Palette Mapping
+    const GOOGLE_COLORS = {
+      '1': '#7986cb', // Lavender
+      '2': '#33b679', // Sage
+      '3': '#8e24aa', // Grape
+      '4': '#e67c73', // Flamingo
+      '5': '#f6bf26', // Banana
+      '6': '#f4511e', // Tangerine
+      '7': '#039be5', // Peacock
+      '8': '#616161', // Graphite
+      '9': '#3f51b5', // Blueberry
+      '10': '#0b8043', // Basil
+      '11': '#d50000'  // Tomato
+    };
+
     const REFRESH_INTERVAL = 30000;
     
-    // Memory Cache logic ensures completely silent background updates
     let cachedBusData = [];
     let isFetchingBus = false;
     let lastFetchTime = null;
-    let displayAs24Hour = localStorage.getItem('busDisplayFormat') === '24h'; // Persists toggle preference!
+    let displayAs24Hour = localStorage.getItem('busDisplayFormat') === '24h';
 
-    // Helper to determine KMB stop sequence for a given route & stop label
     function getKmbSeq(route, stopLabel) {
       if (route === "171" || route === "171P") {
         if (stopLabel === "South Horizons") return 1;
@@ -348,7 +399,6 @@
       return null;
     }
 
-    // Relative Live Time Counter
     function updateRefreshBadge() {
       const updatedEl = document.getElementById('last-updated');
       if (!lastFetchTime) {
@@ -365,23 +415,22 @@
     }
     setInterval(updateRefreshBadge, 1000);
 
-    // Toggle interactive clock view
     function toggleFormat() {
       displayAs24Hour = !displayAs24Hour;
       localStorage.setItem('busDisplayFormat', displayAs24Hour ? '24h' : 'mins');
-      renderBusETA(); // Redraws instantly from cache without trigger loading states!
+      renderBusETA();
     }
 
     // ==========================================
-    // GOOGLE CALENDAR LIVE EVENTS FETCHING & PARSING
+    // GOOGLE CALENDAR LIVE EVENTS (Multi-Day Preview)
     // ==========================================
     const MOCK_EVENTS = [
-      { summary: "🍳 Breakfast & Get Ready", start: { dateTime: new Date().setHours(7, 30, 0) }, description: "Dress up for school and check morning temperature." },
-      { summary: "🚌 School Bus departure", start: { dateTime: new Date().setHours(8, 15, 0) }, description: "Remind him to grab his lunchbox." },
-      { summary: "🍱 Nutritious Lunch", start: { dateTime: new Date().setHours(12, 30, 0) }, description: "Freshly prepared meal by the helper." },
-      { summary: "📚 Homework & Spellings", start: { dateTime: new Date().setHours(15, 30, 0) }, description: "Practice reading books and spelling words." },
-      { summary: "🚿 Shower & Change", start: { dateTime: new Date().setHours(17, 30, 0) }, description: "Wash up before dinner." },
-      { summary: "🍽️ Dinner Time", start: { dateTime: new Date().setHours(18, 30, 0) }, description: "Family dinner together." }
+      { summary: "🍳 Breakfast & Get Ready", start: { dateTime: new Date().setHours(7, 30, 0) }, end: { dateTime: new Date().setHours(8, 0, 0) }, description: "Check morning temperature." },
+      { summary: "🚌 School Bus departure", start: { dateTime: new Date().setHours(8, 15, 0) }, end: { dateTime: new Date().setHours(8, 25, 0) }, description: "Grab lunchbox." },
+      { summary: "🍱 Nutritious Lunch", start: { dateTime: new Date().setHours(12, 30, 0) }, end: { dateTime: new Date().setHours(13, 15, 0) }, description: "Meal by helper." },
+      { summary: "📚 Homework & Spellings", start: { dateTime: new Date().setHours(15, 30, 0) }, end: { dateTime: new Date().setHours(16, 30, 0) }, description: "Practice reading." },
+      { summary: "🚿 Shower & Change", start: { dateTime: new Date().setHours(17, 30, 0) }, end: { dateTime: new Date().setHours(18, 0, 0) }, description: "Wash up before dinner." },
+      { summary: "🍽️ Dinner Time", start: { dateTime: new Date().setHours(18, 30, 0) }, end: { dateTime: new Date().setHours(19, 30, 0) }, description: "Family dinner." }
     ];
 
     async function fetchCalendarEvents() {
@@ -395,9 +444,10 @@
       try {
         const now = new Date();
         const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
-        const endOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59).toISOString();
+        // Fetch up to 3 upcoming days
+        const endOf3Days = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 3, 23, 59, 59).toISOString();
         
-        const url = `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(CALENDAR_ID)}/events?key=${API_KEY}&timeMin=${startOfToday}&timeMax=${endOfToday}&singleEvents=true&orderBy=startTime`;
+        const url = `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(CALENDAR_ID)}/events?key=${API_KEY}&timeMin=${startOfToday}&timeMax=${endOf3Days}&singleEvents=true&orderBy=startTime`;
 
         const res = await fetch(url);
         if (!res.ok) throw new Error('API request failed');
@@ -414,45 +464,100 @@
     function renderEvents(events) {
       const calendarListEl = document.getElementById('calendar-list');
       
-      if (events.length === 0) {
-        calendarListEl.innerHTML = '<li class="loading">No events scheduled for today.</li>';
-        return;
+      const now = new Date();
+      const todayDateStr = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toDateString();
+
+      // Group events by day string
+      const dayGroups = {};
+      
+      events.forEach(event => {
+        const start = event.start.dateTime ? new Date(event.start.dateTime) : (event.start.date ? new Date(event.start.date) : null);
+        if (!start) return;
+
+        const dayKey = new Date(start.getFullYear(), start.getMonth(), start.getDate()).toDateString();
+        if (!dayGroups[dayKey]) {
+          dayGroups[dayKey] = {
+            dateObj: start,
+            items: []
+          };
+        }
+        dayGroups[dayKey].items.push(event);
+      });
+
+      let htmlContent = '';
+
+      // Check if Today has events
+      const hasEventsToday = dayGroups[todayDateStr] && dayGroups[todayDateStr].items.length > 0;
+
+      if (!hasEventsToday) {
+        const todayLabel = now.toLocaleDateString('en-HK', { day: 'numeric', month: 'short', weekday: 'short' });
+        htmlContent += `
+          <div class="day-group-header">📅 Today (${todayLabel})</div>
+          <div class="no-event-today">⚠️ No events scheduled for today</div>
+        `;
       }
 
-      calendarListEl.innerHTML = events.map(event => {
-        const start = event.start.dateTime ? new Date(event.start.dateTime) : (event.start.date ? new Date(event.start.date) : null);
-        let timeStr = 'All Day';
-        let dateStr = 'Today';
-        
-        if (start) {
-          dateStr = start.toLocaleDateString('en-HK', {
-            day: 'numeric',
-            month: 'short',
-            weekday: 'short'
-          });
-          if (event.start.dateTime) {
-            timeStr = start.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }).toLowerCase();
-          }
-        }
+      // Render upcoming days
+      const sortedDays = Object.keys(dayGroups).sort((a, b) => new Date(a) - new Date(b));
 
-        return `
-          <li class="calendar-item">
-            <div class="event-meta">
-              <span class="event-date">${dateStr}</span>
-              <span class="event-time">${timeStr}</span>
-            </div>
-            <div class="event-details">
-              <span class="event-title">${event.summary || 'No Title'}</span>
-              ${event.location ? `<span class="event-location">📍 ${event.location}</span>` : ''}
-              ${event.description ? `<span class="event-desc">${event.description}</span>` : ''}
-            </div>
-          </li>
-        `;
-      }).join('');
+      sortedDays.forEach(dayKey => {
+        const group = dayGroups[dayKey];
+        const isToday = dayKey === todayDateStr;
+        const isTomorrow = dayKey === new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1).toDateString();
+
+        let dayTitle = group.dateObj.toLocaleDateString('en-HK', { day: 'numeric', month: 'short', weekday: 'short' });
+        if (isToday) dayTitle = `Today (${dayTitle})`;
+        else if (isTomorrow) dayTitle = `Tomorrow (${dayTitle})`;
+
+        htmlContent += `<div class="day-group-header">📅 ${dayTitle}</div>`;
+
+        group.items.forEach(event => {
+          const isTask = !event.start.dateTime; // All-day or Task
+          const start = event.start.dateTime ? new Date(event.start.dateTime) : new Date(event.start.date);
+          const end = event.end && event.end.dateTime ? new Date(event.end.dateTime) : null;
+
+          let timeStr = 'All Day';
+          let durationBadge = '';
+
+          if (!isTask) {
+            timeStr = start.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }).toLowerCase();
+            
+            // Calculate Duration for Events
+            if (end) {
+              const durMins = Math.round((end - start) / 60000);
+              if (durMins > 0) {
+                const h = Math.floor(durMins / 60);
+                const m = durMins % 60;
+                const durText = h > 0 ? (m > 0 ? `${h}h ${m}m` : `${h}h`) : `${m}m`;
+                durationBadge = `<span class="event-duration">⏱️ ${durText}</span>`;
+              }
+            }
+          }
+
+          // Custom Google Color mapping
+          const borderHex = (event.colorId && GOOGLE_COLORS[event.colorId]) ? GOOGLE_COLORS[event.colorId] : 'var(--accent)';
+
+          htmlContent += `
+            <li class="calendar-item" style="border-left-color: ${borderHex};">
+              <div class="event-meta">
+                <span class="event-date">${timeStr}</span>
+                ${durationBadge}
+              </div>
+              <div class="event-details">
+                <span class="event-title">${event.summary || 'No Title'}</span>
+                ${event.location ? `<span class="event-location">📍 ${event.location}</span>` : ''}
+                ${event.description ? `<span class="event-desc">${event.description}</span>` : ''}
+              </div>
+            </li>
+          `;
+        });
+      });
+
+      calendarListEl.innerHTML = htmlContent;
     }
 
     // ==========================================
-    // BUS ETA FETCHING (Citybus & KMB Open APIs)
+    // BUS ETA FETCHING
     // ==========================================
     async function fetchCitybusData(stopId, route) {
       try {
@@ -464,7 +569,6 @@
         let json = await res.json();
         let items = json.data || [];
         
-        // Batch API Fallback
         if (items.length === 0 && !route) {
           let batchRes = await fetch(`https://rt.data.gov.hk/v1/transport/batch/stop-eta?company_id=CTB&stop_id=${stopId}`);
           if (batchRes.ok) {
@@ -474,7 +578,6 @@
         }
         return items;
       } catch (e) {
-        console.warn(`Error fetching Citybus data for stop ${stopId}:`, e);
         return [];
       }
     }
@@ -491,7 +594,6 @@
         
         return data.filter(item => (item.dir === 'O' || item.bound === 'O') && item.seq === seqNumber);
       } catch (e) {
-        console.warn(`Error fetching KMB data for route ${route}:`, e);
         return [];
       }
     }
@@ -505,11 +607,9 @@
           let items = [];
           if (stop.routes && stop.routes.length > 0) {
             const routePromises = stop.routes.map(async r => {
-              // 1. Fetch Citybus data
               let ctbItems = await fetchCitybusData(stop.id, r);
               ctbItems = ctbItems.map(item => ({ ...item, co: "CTB" }));
 
-              // 2. Fetch KMB data if it is a joint-operated route
               if (JOINT_ROUTES.includes(r)) {
                 const kmbSeq = getKmbSeq(r, stop.label);
                 if (kmbSeq !== null) {
@@ -535,11 +635,13 @@
         });
 
         const results = await Promise.all(fetchRequests);
+        const validData = results.flat().filter(item => item.eta);
         
-        // Save the raw response locally so that toggle format renders instantly without a blank flash or reload!
-        cachedBusData = results.flat();
-        lastFetchTime = new Date();
-        renderBusETA();
+        if (validData.length > 0) {
+          cachedBusData = validData;
+          lastFetchTime = new Date();
+          renderBusETA();
+        }
 
       } catch (error) {
         console.error('Error fetching Bus ETA:', error);
@@ -550,9 +652,8 @@
 
     function renderBusETA() {
       const busListEl = document.getElementById('bus-list');
-      if (cachedBusData.length === 0 && !lastFetchTime) return;
+      if (cachedBusData.length === 0) return;
 
-      // Structure Groupings
       const stopGroups = {};
       BUS_STOPS.forEach(stop => {
         stopGroups[stop.label] = [];
@@ -571,13 +672,11 @@
           cleanDest = cleanDest.substring(3);
         }
 
-        // Exclusion rules logic
         if (item.excludeDest) {
           const isExcluded = item.excludeDest.some(ex => cleanDest.toLowerCase().includes(ex.toLowerCase()));
           if (isExcluded) return;
         }
 
-        // Combine routes inside matching stop header (grouping KMB and CTB under same route number if they arrive at same stop)
         let existingRoute = stopGroups[stopLabel].find(r => r.route === item.route);
         if (!existingRoute) {
           existingRoute = {
@@ -590,17 +689,14 @@
         existingRoute.times.push({ mins: diffMins, timeObj: etaDate, co: item.co });
       });
 
-      // Generate HTML with correct sorting and grouping
       let htmlContent = '';
       BUS_STOPS.forEach(stop => {
         const routesInStop = stopGroups[stop.label];
 
-        // Sort incoming routes
         routesInStop.forEach(r => {
           r.times.sort((a, b) => a.mins - b.mins);
         });
 
-        // Sort based on closest arrival time
         routesInStop.sort((a, b) => {
           const aNear = a.times.length > 0 ? a.times[0].mins : 9999;
           const bNear = b.times.length > 0 ? b.times[0].mins : 9999;
@@ -613,7 +709,6 @@
             let etaText = '';
             const sep = '<span class="separator"> | </span>';
             
-            // Map display strings based on toggle setting (mins vs 24h clock)
             const formattedTimes = r.times.map(t => {
               if (displayAs24Hour) {
                 const h = String(t.timeObj.getHours()).padStart(2, '0');
@@ -622,21 +717,20 @@
               } else {
                 return t.mins;
               }
-            }).slice(0, 3); // Take top 3 departures
+            }).slice(0, 3);
 
             const suffixStr = displayAs24Hour ? "" : " <span>mins</span>";
 
             if (formattedTimes.length === 3) {
-              etaText = `${formattedTimes[0]}${sep}${formattedTimes[1]}${sep}${formattedTimes[2]}${suffixStr}`;
+              etaText = `${formattedTimes[0]}${sep}${formattedTimes}${sep}${formattedTimes}${suffixStr}`;
             } else if (formattedTimes.length === 2) {
-              etaText = `${formattedTimes[0]}${sep}${formattedTimes[1]}${suffixStr}`;
+              etaText = `${formattedTimes[0]}${sep}${formattedTimes}${suffixStr}`;
             } else if (formattedTimes.length === 1) {
               etaText = `${formattedTimes[0]}${suffixStr}`;
             } else {
               etaText = `--${suffixStr}`;
             }
 
-            // Determine if KMB or Citybus (if nearest bus is KMB, color-badge KMB red class!)
             const nearestCo = r.times[0] ? r.times[0].co : 'CTB';
             const routeClass = nearestCo === 'KMB' ? 'bus-route kmb-route' : 'bus-route';
 
