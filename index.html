@@ -222,26 +222,13 @@
     .event-meta {
       display: flex;
       flex-direction: column;
-      min-width: 100px;
+      min-width: 110px;
     }
 
     .event-date {
-      font-size: 0.9rem;
+      font-size: 0.85rem;
       font-weight: bold;
-      color: #ffffff !important; /* Crisp white date/time text */
-    }
-
-    .event-time {
-      font-size: 0.8rem;
-      color: var(--text-sub);
-      margin-top: 2px;
-    }
-
-    .event-duration {
-      font-size: 0.75rem;
-      color: var(--accent-green);
-      font-weight: 600;
-      margin-top: 2px;
+      color: #ffffff; /* Crisp white date/time text */
     }
 
     .event-details {
@@ -339,7 +326,7 @@
     // ==========================================
     // CONFIGURATION
     // ==========================================
-    const API_KEY = "AIzaSyBBkUBfCpaClMZDhEnBat5E0H69UhgZ_sg"; // Paste your free Google API Key here!
+    const API_KEY = "AIzaSyBBkUBfCpaClMZDhEnBat5E0H69UhgZ_sg"; // Your Google API Key
     const CALENDAR_ID = "agnes@ohmoookies.com"; // Your Google Calendar ID
 
     const BUS_STOPS = [
@@ -422,7 +409,7 @@
     }
 
     // ==========================================
-    // GOOGLE CALENDAR LIVE EVENTS (Multi-Day Preview)
+    // GOOGLE CALENDAR LIVE EVENTS (Non-Consecutive Multi-Day Preview)
     // ==========================================
     const MOCK_EVENTS = [
       { summary: "🍳 Breakfast & Get Ready", start: { dateTime: new Date(new Date().setHours(7, 30, 0)).toISOString() }, end: { dateTime: new Date(new Date().setHours(8, 0, 0)).toISOString() }, description: "Check morning temperature." },
@@ -444,10 +431,10 @@
       try {
         const now = new Date();
         const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
-        // Fetch up to 3 upcoming days
-        const endOf3Days = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 3, 23, 59, 59).toISOString();
+        // Fetch up to 30 days out to guarantee capturing future event days
+        const endRange = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 30, 23, 59, 59).toISOString();
 
-        const url = `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(CALENDAR_ID)}/events?key=${API_KEY}&timeMin=${startOfToday}&timeMax=${endOf3Days}&singleEvents=true&orderBy=startTime`;
+        const url = `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(CALENDAR_ID)}/events?key=${API_KEY}&timeMin=${startOfToday}&timeMax=${endRange}&singleEvents=true&orderBy=startTime`;
 
         const res = await fetch(url);
         if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`);
@@ -484,10 +471,22 @@
         dayGroups[dayKey].items.push(event);
       });
 
-      let htmlContent = '';
+      // Find unique days with events in chronological order
+      const sortedDaysWithEvents = Object.keys(dayGroups).sort((a, b) => new Date(a) - new Date(b));
 
       // Check if Today has events
       const hasEventsToday = dayGroups[todayDateStr] && dayGroups[todayDateStr].items.length > 0;
+
+      let selectedDays = [];
+      if (hasEventsToday) {
+        selectedDays = sortedDaysWithEvents.slice(0, 3);
+      } else {
+        // Pick top 2 future days with events
+        const futureDays = sortedDaysWithEvents.filter(d => d !== todayDateStr).slice(0, 2);
+        selectedDays = futureDays;
+      }
+
+      let htmlContent = '';
 
       if (!hasEventsToday) {
         const todayLabel = now.toLocaleDateString('en-HK', { day: 'numeric', month: 'short', weekday: 'short' });
@@ -497,10 +496,7 @@
         `;
       }
 
-      // Render upcoming days
-      const sortedDays = Object.keys(dayGroups).sort((a, b) => new Date(a) - new Date(b));
-
-      sortedDays.forEach(dayKey => {
+      selectedDays.forEach(dayKey => {
         const group = dayGroups[dayKey];
         const isToday = dayKey === todayDateStr;
         const isTomorrow = dayKey === new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1).toDateString();
@@ -517,20 +513,14 @@
           const end = event.end && event.end.dateTime ? new Date(event.end.dateTime) : null;
 
           let timeStr = 'All Day';
-          let durationBadge = '';
 
           if (!isTask) {
-            timeStr = start.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }).toLowerCase();
-
-            // Calculate Duration for Events
+            const startStr = start.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
             if (end) {
-              const durMins = Math.round((end - start) / 60000);
-              if (durMins > 0) {
-                const h = Math.floor(durMins / 60);
-                const m = durMins % 60;
-                const durText = h > 0 ? (m > 0 ? `${h}h ${m}m` : `${h}h`) : `${m}m`;
-                durationBadge = `<span class="event-duration">⏱️ ${durText}</span>`;
-              }
+              const endStr = end.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
+              timeStr = `${startStr} - ${endStr}`;
+            } else {
+              timeStr = startStr;
             }
           }
 
@@ -540,8 +530,7 @@
           htmlContent += `
             <li class="calendar-item" style="border-left-color: ${borderHex};">
               <div class="event-meta">
-                <span class="event-date">${timeStr}</span>
-                ${durationBadge}
+                <span class="event-date" style="color: ${borderHex} !important;">${timeStr}</span>
               </div>
               <div class="event-details">
                 <span class="event-title">${event.summary || 'No Title'}</span>
@@ -722,9 +711,9 @@
             const suffixStr = displayAs24Hour ? "" : " <span>mins</span>";
 
             if (formattedTimes.length >= 3) {
-              etaText = `${formattedTimes[0]}${sep}${formattedTimes}${sep}${formattedTimes}${suffixStr}`;
+              etaText = `${formattedTimes[0]}${sep}${formattedTimes[1]}${sep}${formattedTimes[2]}${suffixStr}`;
             } else if (formattedTimes.length === 2) {
-              etaText = `${formattedTimes[0]}${sep}${formattedTimes}${suffixStr}`;
+              etaText = `${formattedTimes[0]}${sep}${formattedTimes[1]}${suffixStr}`;
             } else if (formattedTimes.length === 1) {
               etaText = `${formattedTimes[0]}${suffixStr}`;
             } else {
