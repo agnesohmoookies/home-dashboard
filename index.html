@@ -207,16 +207,29 @@
       margin-top: 0;
     }
 
-    .calendar-item {
+   .calendar-item {
       display: flex;
       align-items: flex-start;
       gap: 12px;
       padding: 10px 8px;
       border-bottom: 1px solid #2a2a2a;
-      border-left: 4px solid var(--accent); /* Default color indicator */
+      border-left: 4px solid #93c572; /* Pistachio Green default */
       margin-bottom: 4px;
       border-radius: 4px;
       background: #181818;
+    }
+
+
+
+    .no-event-today {
+      padding: 12px 10px;
+      color: #93c572; /* Pistachio Green text */
+      font-size: 0.9rem;
+      font-weight: bold;
+      background: #1c2b1c; /* Subtle dark green background */
+      border-radius: 6px;
+      border: 1px dashed #93c572; /* Pistachio Green border */
+      margin-bottom: 10px;
     }
 
     .event-meta {
@@ -256,17 +269,6 @@
       font-size: 0.75rem;
       color: var(--text-sub);
       margin-top: 4px;
-    }
-
-    .no-event-today {
-      padding: 12px 10px;
-      color: #ff9800; /* Subtle orange alert */
-      font-size: 0.9rem;
-      font-weight: bold;
-      background: #252010;
-      border-radius: 6px;
-      border: 1px dashed #ff9800;
-      margin-bottom: 10px;
     }
 
     .loading, .error {
@@ -488,10 +490,10 @@
 
       let htmlContent = '';
 
-      if (!hasEventsToday) {
+     if (!hasEventsToday) {
         const todayLabel = now.toLocaleDateString('en-HK', { day: 'numeric', month: 'short', weekday: 'short' });
         htmlContent += `
-          <div class="day-group-header">📅 Today (${todayLabel})</div>
+          <div class="day-group-header">Today (${todayLabel})</div>
           <div class="no-event-today">⚠️ No events scheduled for today</div>
         `;
       }
@@ -505,7 +507,7 @@
         if (isToday) dayTitle = `Today (${dayTitle})`;
         else if (isTomorrow) dayTitle = `Tomorrow (${dayTitle})`;
 
-        htmlContent += `<div class="day-group-header">📅 ${dayTitle}</div>`;
+        htmlContent += `<div class="day-group-header">${dayTitle}</div>`;
 
         group.items.forEach(event => {
           const isTask = !event.start.dateTime; // All-day or Task
@@ -524,8 +526,8 @@
             }
           }
 
-          // Custom Google Color mapping
-          const borderHex = (event.colorId && GOOGLE_COLORS[event.colorId]) ? GOOGLE_COLORS[event.colorId] : 'var(--accent)';
+          // Custom Google Color mapping with Pistachio Green default
+          const borderHex = (event.colorId && GOOGLE_COLORS[event.colorId]) ? GOOGLE_COLORS[event.colorId] : '#93c572';
 
           htmlContent += `
             <li class="calendar-item" style="border-left-color: ${borderHex};">
@@ -541,7 +543,6 @@
           `;
         });
       });
-
       calendarListEl.innerHTML = htmlContent;
     }
 
