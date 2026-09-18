@@ -19,6 +19,12 @@
       --accent: #ffc107; /* Citybus Yellow */
       --accent-green: #4caf50;
       --border-color: #333333;
+      
+      /* Pistachio Green Theme for Calendar */
+      --pistachio-main: #93c572;
+      --pistachio-dark: #3b6b22;
+      --pistachio-light: #f1f8ed;
+      --pistachio-border: #d5e8c8;
     }
 
     * {
@@ -66,7 +72,10 @@
       flex-direction: column;
     }
 
-    .card {
+    /* ==========================================
+       PAGE 1: BUS SCHEDULE (Dark Mode)
+       ========================================== */
+    .bus-card {
       background: var(--card-bg);
       border-radius: 12px;
       border: 1px solid var(--border-color);
@@ -93,21 +102,20 @@
       font-weight: normal;
     }
 
-    /* Bus Stop Headers and List Styling */
     .bus-list {
       list-style: none;
       overflow-y: auto;
       flex: 1;
       padding-bottom: 8px;
-      cursor: pointer; /* Clickable list indicator */
-      touch-action: manipulation; /* Removes 300ms click delay on mobile */
-      -webkit-tap-highlight-color: transparent; /* Removes tap highlight box */
+      cursor: pointer;
+      touch-action: manipulation;
+      -webkit-tap-highlight-color: transparent;
     }
 
     .stop-header {
-      font-size: 1.15rem; /* Slightly larger size */
+      font-size: 1.15rem;
       font-weight: bold;
-      color: #ffffff; /* Crisp white stop header */
+      color: #ffffff;
       padding: 8px 0 6px 0;
       border-bottom: 1px solid var(--border-color);
       display: flex;
@@ -144,7 +152,6 @@
       text-align: center;
     }
 
-    /* KMB Red Operator Badge */
     .kmb-route {
       background: #e11d48 !important; /* KMB Red */
       color: #ffffff !important;
@@ -173,7 +180,6 @@
       color: var(--text-sub);
     }
 
-    /* Subtle Grey Separator Styling */
     .bus-eta .separator {
       color: var(--text-sub);
       opacity: 0.6;
@@ -181,7 +187,22 @@
       margin: 0 4px;
     }
 
-    /* Custom Calendar List Styling */
+    /* ==========================================
+       PAGE 2: CALENDAR (Light Mode & Pistachio)
+       ========================================== */
+    .calendar-card {
+      background: #ffffff !important; /* Pure white background */
+      border-radius: 12px;
+      border: 1px solid #e5e7eb;
+      padding: 14px;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      height: 100%;
+      color: #111827;
+    }
+
     .calendar-list {
       list-style: none;
       overflow-y: auto;
@@ -189,59 +210,46 @@
       padding-bottom: 4px;
     }
 
+    /* Clean Day Section Header without emoji */
     .day-group-header {
-      font-size: 1.05rem;
-      font-weight: bold;
-      color: #ffffff !important; /* Crisp white day header */
-      padding: 10px 8px 6px 8px;
-      background: #282828;
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: var(--pistachio-dark) !important;
+      padding: 8px 10px;
+      background: var(--pistachio-light);
       border-radius: 6px;
+      border: 1px solid var(--pistachio-border);
       margin-top: 12px;
-      margin-bottom: 6px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
+      margin-bottom: 8px;
+      letter-spacing: 0.2px;
     }
 
     .day-group-header:first-child {
       margin-top: 0;
     }
 
-   .calendar-item {
+    .calendar-item {
       display: flex;
       align-items: flex-start;
       gap: 12px;
-      padding: 10px 8px;
-      border-bottom: 1px solid #2a2a2a;
-      border-left: 4px solid #93c572; /* Pistachio Green default */
-      margin-bottom: 4px;
+      padding: 9px 10px;
+      border-bottom: 1px solid #f3f4f6;
+      border-left: 4px solid var(--pistachio-main);
+      margin-bottom: 6px;
       border-radius: 4px;
-      background: #181818;
-    }
-
-
-
-    .no-event-today {
-      padding: 12px 10px;
-      color: #93c572; /* Pistachio Green text */
-      font-size: 0.9rem;
-      font-weight: bold;
-      background: #1c2b1c; /* Subtle dark green background */
-      border-radius: 6px;
-      border: 1px dashed #93c572; /* Pistachio Green border */
-      margin-bottom: 10px;
+      background: #fafbfc;
     }
 
     .event-meta {
       display: flex;
       flex-direction: column;
-      min-width: 110px;
+      min-width: 105px;
     }
 
     .event-date {
-      font-size: 0.85rem;
-      font-weight: bold;
-      color: #ffffff; /* Crisp white date/time text */
+      font-size: 0.82rem;
+      font-weight: 700;
+      color: var(--pistachio-dark);
     }
 
     .event-details {
@@ -251,15 +259,15 @@
     }
 
     .event-title {
-      font-size: 0.95rem;
-      color: var(--text-main);
-      font-weight: bold;
+      font-size: 0.92rem;
+      color: #111827;
+      font-weight: 600;
     }
 
     .event-location {
       font-size: 0.75rem;
-      color: var(--text-sub);
-      margin-top: 4px;
+      color: #6b7280;
+      margin-top: 3px;
       display: flex;
       align-items: center;
       gap: 4px;
@@ -267,8 +275,19 @@
 
     .event-desc {
       font-size: 0.75rem;
-      color: var(--text-sub);
-      margin-top: 4px;
+      color: #6b7280;
+      margin-top: 3px;
+    }
+
+    .no-event-today {
+      padding: 10px 12px;
+      color: #854d0e;
+      font-size: 0.85rem;
+      font-weight: 600;
+      background: #fefce8;
+      border-radius: 6px;
+      border: 1px dashed #ca8a04;
+      margin-bottom: 10px;
     }
 
     .loading, .error {
@@ -286,8 +305,7 @@
 
     <!-- Page 1: Standalone Bus Schedule -->
     <div class="swipe-page">
-      <div class="card">
-        <!-- Tapping anywhere in this list toggles countdown minutes and 24h clock format instantly -->
+      <div class="bus-card">
         <ul id="bus-list" class="bus-list" onclick="toggleFormat()">
           <li class="loading">Fetching live Bus data...</li>
         </ul>
@@ -299,7 +317,7 @@
 
     <!-- Page 2: Standalone Calendar Schedule (Swipe Right) -->
     <div class="swipe-page">
-      <div class="card">
+      <div class="calendar-card">
         <ul id="calendar-list" class="calendar-list">
           <li class="loading">Loading Google calendar...</li>
         </ul>
@@ -354,19 +372,19 @@
 
     const JOINT_ROUTES = ["171", "171P", "671", "671X"];
 
-    // Official Google Calendar Palette Mapping
+    // Google Calendar Palette Mapping
     const GOOGLE_COLORS = {
-      '1': '#7986cb', // Lavender
-      '2': '#33b679', // Sage
-      '3': '#8e24aa', // Grape
-      '4': '#e67c73', // Flamingo
-      '5': '#f6bf26', // Banana
-      '6': '#f4511e', // Tangerine
-      '7': '#039be5', // Peacock
-      '8': '#616161', // Graphite
-      '9': '#3f51b5', // Blueberry
-      '10': '#0b8043', // Basil
-      '11': '#d50000'  // Tomato
+      '1': '#7986cb',
+      '2': '#33b679',
+      '3': '#8e24aa',
+      '4': '#e67c73',
+      '5': '#f6bf26',
+      '6': '#f4511e',
+      '7': '#039be5',
+      '8': '#616161',
+      '9': '#3f51b5',
+      '10': '#0b8043',
+      '11': '#d50000'
     };
 
     const REFRESH_INTERVAL = 30000;
@@ -376,6 +394,7 @@
     let lastFetchTime = null;
     let displayAs24Hour = localStorage.getItem('busDisplayFormat') === '24h';
 
+    // Sequence Mapping with Tolerance for 671 / 671X
     function getKmbSeq(route, stopLabel) {
       if (route === "171" || route === "171P") {
         if (stopLabel === "South Horizons") return 1;
@@ -383,7 +402,8 @@
       }
       if (route === "671" || route === "671X") {
         if (stopLabel === "Ap Lei Chau") return 1;
-        if (stopLabel === "Lei Chak House") return 7;
+        // Allows sequence 6 or 7 to accommodate special departures
+        if (stopLabel === "Lei Chak House") return;
       }
       return null;
     }
@@ -411,15 +431,15 @@
     }
 
     // ==========================================
-    // GOOGLE CALENDAR LIVE EVENTS (Non-Consecutive Multi-Day Preview)
+    // GOOGLE CALENDAR LIVE EVENTS
     // ==========================================
     const MOCK_EVENTS = [
-      { summary: "🍳 Breakfast & Get Ready", start: { dateTime: new Date(new Date().setHours(7, 30, 0)).toISOString() }, end: { dateTime: new Date(new Date().setHours(8, 0, 0)).toISOString() }, description: "Check morning temperature." },
-      { summary: "🚌 School Bus departure", start: { dateTime: new Date(new Date().setHours(8, 15, 0)).toISOString() }, end: { dateTime: new Date(new Date().setHours(8, 25, 0)).toISOString() }, description: "Grab lunchbox." },
-      { summary: "🍱 Nutritious Lunch", start: { dateTime: new Date(new Date().setHours(12, 30, 0)).toISOString() }, end: { dateTime: new Date(new Date().setHours(13, 15, 0)).toISOString() }, description: "Meal by helper." },
-      { summary: "📚 Homework & Spellings", start: { dateTime: new Date(new Date().setHours(15, 30, 0)).toISOString() }, end: { dateTime: new Date(new Date().setHours(16, 30, 0)).toISOString() }, description: "Practice reading." },
-      { summary: "🚿 Shower & Change", start: { dateTime: new Date(new Date().setHours(17, 30, 0)).toISOString() }, end: { dateTime: new Date(new Date().setHours(18, 0, 0)).toISOString() }, description: "Wash up before dinner." },
-      { summary: "🍽️ Dinner Time", start: { dateTime: new Date(new Date().setHours(18, 30, 0)).toISOString() }, end: { dateTime: new Date(new Date().setHours(19, 30, 0)).toISOString() }, description: "Family dinner." }
+      { summary: "Breakfast & Get Ready", start: { dateTime: new Date(new Date().setHours(7, 30, 0)).toISOString() }, end: { dateTime: new Date(new Date().setHours(8, 0, 0)).toISOString() }, description: "Dress up and check morning temperature." },
+      { summary: "School Bus departure", start: { dateTime: new Date(new Date().setHours(8, 15, 0)).toISOString() }, end: { dateTime: new Date(new Date().setHours(8, 25, 0)).toISOString() }, description: "Remind him to grab lunchbox." },
+      { summary: "Nutritious Lunch", start: { dateTime: new Date(new Date().setHours(12, 30, 0)).toISOString() }, end: { dateTime: new Date(new Date().setHours(13, 15, 0)).toISOString() }, description: "Fresh meal by helper." },
+      { summary: "Homework & Spellings", start: { dateTime: new Date(new Date().setHours(15, 30, 0)).toISOString() }, end: { dateTime: new Date(new Date().setHours(16, 30, 0)).toISOString() }, description: "Practice reading." },
+      { summary: "Shower & Change", start: { dateTime: new Date(new Date().setHours(17, 30, 0)).toISOString() }, end: { dateTime: new Date(new Date().setHours(18, 0, 0)).toISOString() }, description: "Wash up before dinner." },
+      { summary: "Dinner Time", start: { dateTime: new Date(new Date().setHours(18, 30, 0)).toISOString() }, end: { dateTime: new Date(new Date().setHours(19, 30, 0)).toISOString() }, description: "Family dinner." }
     ];
 
     async function fetchCalendarEvents() {
@@ -433,7 +453,6 @@
       try {
         const now = new Date();
         const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
-        // Fetch up to 30 days out to guarantee capturing future event days
         const endRange = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 30, 23, 59, 59).toISOString();
 
         const url = `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(CALENDAR_ID)}/events?key=${API_KEY}&timeMin=${startOfToday}&timeMax=${endRange}&singleEvents=true&orderBy=startTime`;
@@ -446,17 +465,15 @@
 
       } catch (error) {
         console.error('Error fetching Google Calendar:', error);
-        calendarListEl.innerHTML = `<li class="error">⚠️ Unable to load Google Calendar.<br/><small>${error.message}. Check that Calendar is set to "Make available to public" and that "Google Calendar API" is enabled in Google Cloud Console.</small></li>`;
+        calendarListEl.innerHTML = `<li class="error" style="color:#b91c1c;">⚠️ Unable to load Google Calendar.<br/><small>${error.message}. Please verify access permissions in Google Calendar settings.</small></li>`;
       }
     }
 
     function renderEvents(events) {
       const calendarListEl = document.getElementById('calendar-list');
-
       const now = new Date();
       const todayDateStr = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toDateString();
 
-      // Group events by day string
       const dayGroups = {};
 
       events.forEach(event => {
@@ -473,28 +490,23 @@
         dayGroups[dayKey].items.push(event);
       });
 
-      // Find unique days with events in chronological order
       const sortedDaysWithEvents = Object.keys(dayGroups).sort((a, b) => new Date(a) - new Date(b));
-
-      // Check if Today has events
       const hasEventsToday = dayGroups[todayDateStr] && dayGroups[todayDateStr].items.length > 0;
 
       let selectedDays = [];
       if (hasEventsToday) {
         selectedDays = sortedDaysWithEvents.slice(0, 3);
       } else {
-        // Pick top 2 future days with events
-        const futureDays = sortedDaysWithEvents.filter(d => d !== todayDateStr).slice(0, 2);
-        selectedDays = futureDays;
+        selectedDays = sortedDaysWithEvents.filter(d => d !== todayDateStr).slice(0, 2);
       }
 
       let htmlContent = '';
 
-     if (!hasEventsToday) {
+      if (!hasEventsToday) {
         const todayLabel = now.toLocaleDateString('en-HK', { day: 'numeric', month: 'short', weekday: 'short' });
         htmlContent += `
           <div class="day-group-header">Today (${todayLabel})</div>
-          <div class="no-event-today">⚠️ No events scheduled for today</div>
+          <div class="no-event-today">No events scheduled for today</div>
         `;
       }
 
@@ -510,7 +522,7 @@
         htmlContent += `<div class="day-group-header">${dayTitle}</div>`;
 
         group.items.forEach(event => {
-          const isTask = !event.start.dateTime; // All-day or Task
+          const isTask = !event.start.dateTime;
           const start = event.start.dateTime ? new Date(event.start.dateTime) : new Date(event.start.date);
           const end = event.end && event.end.dateTime ? new Date(event.end.dateTime) : null;
 
@@ -526,8 +538,8 @@
             }
           }
 
-          // Custom Google Color mapping with Pistachio Green default
-          const borderHex = (event.colorId && GOOGLE_COLORS[event.colorId]) ? GOOGLE_COLORS[event.colorId] : '#93c572';
+          // Use Google Calendar event color if available, else Pistachio Green
+          const borderHex = (event.colorId && GOOGLE_COLORS[event.colorId]) ? GOOGLE_COLORS[event.colorId] : 'var(--pistachio-main)';
 
           htmlContent += `
             <li class="calendar-item" style="border-left-color: ${borderHex};">
@@ -543,6 +555,7 @@
           `;
         });
       });
+
       calendarListEl.innerHTML = htmlContent;
     }
 
@@ -582,7 +595,14 @@
         const json = await res.json();
         const data = json.data || [];
 
-        return data.filter(item => (item.dir === 'O' || item.bound === 'O') && item.seq === seqNumber);
+        return data.filter(item => {
+          const matchDir = item.dir === 'O' || item.bound === 'O';
+          if (!matchDir) return false;
+          if (Array.isArray(seqNumber)) {
+            return seqNumber.includes(item.seq);
+          }
+          return item.seq === seqNumber;
+        });
       } catch (e) {
         return [];
       }
@@ -712,9 +732,9 @@
             const suffixStr = displayAs24Hour ? "" : " <span>mins</span>";
 
             if (formattedTimes.length >= 3) {
-              etaText = `${formattedTimes[0]}${sep}${formattedTimes[1]}${sep}${formattedTimes[2]}${suffixStr}`;
+              etaText = `${formattedTimes[0]}${sep}${formattedTimes}${sep}${formattedTimes}${suffixStr}`;
             } else if (formattedTimes.length === 2) {
-              etaText = `${formattedTimes[0]}${sep}${formattedTimes[1]}${suffixStr}`;
+              etaText = `${formattedTimes[0]}${sep}${formattedTimes}${suffixStr}`;
             } else if (formattedTimes.length === 1) {
               etaText = `${formattedTimes[0]}${suffixStr}`;
             } else {
