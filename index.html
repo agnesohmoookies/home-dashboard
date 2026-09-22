@@ -14,17 +14,16 @@
     :root {
       --bg-color: #121212;
       --card-bg: #1e1e1e;
+      --card-item-bg: #181818;
       --text-main: #ffffff;
       --text-sub: #a0a0a0;
       --accent: #ffc107; /* Citybus Yellow */
       --accent-green: #4caf50;
       --border-color: #333333;
 
-      /* Pistachio Green Theme for Calendar */
+      /* Pistachio Green Accents */
       --pistachio-main: #93c572;
-      --pistachio-dark: #3b6b22;
-      --pistachio-light: #f1f8ed;
-      --pistachio-border: #d5e8c8;
+      --pistachio-muted: rgba(147, 197, 114, 0.25);
     }
 
     * {
@@ -67,7 +66,7 @@
       height: 100vh;
       flex-shrink: 0;
       scroll-snap-align: start; /* Snap page boundaries */
-      padding: 10px;
+      padding: 12px;
       display: flex;
       flex-direction: column;
     }
@@ -79,7 +78,7 @@
       background: var(--card-bg);
       border-radius: 12px;
       border: 1px solid var(--border-color);
-      padding: 12px 14px;
+      padding: 14px;
       flex: 1;
       display: flex;
       flex-direction: column;
@@ -113,7 +112,7 @@
     }
 
     .stop-header {
-      font-size: 1.1rem;
+      font-size: 1.15rem;
       font-weight: bold;
       color: #ffffff;
       padding: 8px 0 6px 0;
@@ -124,7 +123,7 @@
     }
 
     .stop-header:not(:first-child) {
-      margin-top: 12px;
+      margin-top: 14px;
     }
 
     .bus-item {
@@ -133,15 +132,14 @@
       align-items: center;
       padding: 8px 0;
       border-bottom: 1px solid #2a2a2a;
-      gap: 10px;
     }
 
     .bus-info {
       display: flex;
       align-items: center;
-      gap: 10px;
-      flex: 1;
+      gap: 12px;
       min-width: 0;
+      flex: 1;
     }
 
     .bus-route {
@@ -150,12 +148,10 @@
       font-weight: bold;
       padding: 3px 8px;
       border-radius: 6px;
-      font-size: 1rem;
+      font-size: 1.05rem;
       min-width: 58px;
       text-align: center;
       flex-shrink: 0;
-      display: inline-block;
-      margin-right: 4px;
     }
 
     .kmb-route {
@@ -167,7 +163,7 @@
       display: flex;
       flex-direction: column;
       min-width: 0;
-      flex: 1;
+      overflow: hidden;
     }
 
     .bus-dest {
@@ -180,13 +176,12 @@
     }
 
     .bus-eta {
-      font-size: 1.15rem;
+      font-size: 1.18rem;
       font-weight: bold;
       color: var(--accent-green);
       text-align: right;
       flex-shrink: 0;
-      white-space: nowrap;
-      margin-left: 6px;
+      margin-left: 10px;
     }
 
     .bus-eta span {
@@ -202,19 +197,19 @@
     }
 
     /* ==========================================
-       PAGE 2: CALENDAR (Light Mode & Pistachio)
+       PAGE 2: CALENDAR & TASKS (Dark Mode)
        ========================================== */
     .calendar-card {
-      background: #ffffff !important;
+      background: var(--card-bg) !important;
       border-radius: 12px;
-      border: 1px solid #e5e7eb;
+      border: 1px solid var(--border-color);
       padding: 14px;
       flex: 1;
       display: flex;
       flex-direction: column;
       overflow: hidden;
       height: 100%;
-      color: #111827;
+      color: var(--text-main);
     }
 
     .calendar-list {
@@ -224,14 +219,15 @@
       padding-bottom: 4px;
     }
 
+    /* Clean Day Section Header without emoji in Dark Mode */
     .day-group-header {
       font-size: 0.95rem;
       font-weight: 700;
-      color: var(--pistachio-dark) !important;
+      color: #ffffff !important;
       padding: 8px 10px;
-      background: var(--pistachio-light);
+      background: #252525;
       border-radius: 6px;
-      border: 1px solid var(--pistachio-border);
+      border: 1px solid #333333;
       margin-top: 12px;
       margin-bottom: 8px;
       letter-spacing: 0.2px;
@@ -246,40 +242,67 @@
       align-items: flex-start;
       gap: 12px;
       padding: 9px 10px;
-      border-bottom: 1px solid #f3f4f6;
+      border-bottom: 1px solid #282828;
       border-left: 4px solid var(--pistachio-main);
       margin-bottom: 6px;
       border-radius: 4px;
-      background: #fafbfc;
+      background: var(--card-item-bg);
     }
 
     .event-meta {
       display: flex;
       flex-direction: column;
       min-width: 105px;
+      flex-shrink: 0;
+    }
+
+    .item-badge {
+      display: inline-block;
+      font-size: 0.65rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      padding: 1px 5px;
+      border-radius: 4px;
+      margin-bottom: 3px;
+      width: fit-content;
+    }
+
+    .badge-task {
+      background: rgba(147, 197, 114, 0.2);
+      color: #93c572;
+      border: 1px solid rgba(147, 197, 114, 0.4);
+    }
+
+    .badge-event {
+      background: rgba(56, 189, 248, 0.18);
+      color: #38bdf8;
+      border: 1px solid rgba(56, 189, 248, 0.35);
     }
 
     .event-date {
       font-size: 0.82rem;
       font-weight: 700;
-      color: var(--pistachio-dark);
+      color: #ffffff;
     }
 
     .event-details {
       display: flex;
       flex-direction: column;
       flex: 1;
+      min-width: 0;
     }
 
     .event-title {
       font-size: 0.92rem;
-      color: #111827;
+      color: #ffffff;
       font-weight: 600;
+      word-break: break-word;
     }
 
     .event-location {
       font-size: 0.75rem;
-      color: #6b7280;
+      color: var(--text-sub);
       margin-top: 3px;
       display: flex;
       align-items: center;
@@ -288,18 +311,19 @@
 
     .event-desc {
       font-size: 0.75rem;
-      color: #6b7280;
+      color: var(--text-sub);
       margin-top: 3px;
+      word-break: break-word;
     }
 
     .no-event-today {
       padding: 10px 12px;
-      color: #854d0e;
+      color: #f59e0b;
       font-size: 0.85rem;
       font-weight: 600;
-      background: #fefce8;
+      background: #231d10;
       border-radius: 6px;
-      border: 1px dashed #ca8a04;
+      border: 1px dashed #78350f;
       margin-bottom: 10px;
     }
 
@@ -328,11 +352,11 @@
       </div>
     </div>
 
-    <!-- Page 2: Standalone Calendar Schedule (Swipe Right) -->
+    <!-- Page 2: Standalone Calendar & Task Schedule (Swipe Right) -->
     <div class="swipe-page">
       <div class="calendar-card">
         <ul id="calendar-list" class="calendar-list">
-          <li class="loading">Loading Google calendar...</li>
+          <li class="loading">Loading Google calendar & tasks...</li>
         </ul>
       </div>
     </div>
@@ -415,15 +439,15 @@
       }
       if (route === "671" || route === "671X") {
         if (stopLabel === "Ap Lei Chau") return 1;
-        // Allows sequence 6 or 7 to accommodate both regular and special departures
-        if (stopLabel === "Lei Chak House") return [6, 7];
+        // Allows sequence 6 or 7 to accommodate morning peak express departures
+        if (stopLabel === "Lei Chak House") return;
       }
       return null;
     }
 
     function updateRefreshBadge() {
       const updatedEl = document.getElementById('last-updated');
-      if (!updatedEl) return; // Null guard against unmounted DOM node
+      if (!updatedEl) return;
 
       if (!lastFetchTime) {
         updatedEl.innerText = "Updating...";
@@ -446,11 +470,16 @@
     }
 
     // ==========================================
-    // GOOGLE CALENDAR LIVE EVENTS
+    // GOOGLE CALENDAR LIVE EVENTS & TASKS
     // ==========================================
+    const nowRef = new Date();
+    const todayIso = new Date(nowRef.getFullYear(), nowRef.getMonth(), nowRef.getDate()).toISOString().split('T')[0];
+
     const MOCK_EVENTS = [
       { summary: "Breakfast & Get Ready", start: { dateTime: new Date(new Date().setHours(7, 30, 0)).toISOString() }, end: { dateTime: new Date(new Date().setHours(8, 0, 0)).toISOString() }, description: "Dress up and check morning temperature." },
+      { summary: "Sign school permission slip", start: { date: todayIso }, isTask: true, description: "Check school bag before leaving." },
       { summary: "School Bus departure", start: { dateTime: new Date(new Date().setHours(8, 15, 0)).toISOString() }, end: { dateTime: new Date(new Date().setHours(8, 25, 0)).toISOString() }, description: "Remind him to grab lunchbox." },
+      { summary: "Buy groceries & fresh fruit", start: { date: todayIso }, isTask: true, description: "Market stall at Lei Chak House." },
       { summary: "Nutritious Lunch", start: { dateTime: new Date(new Date().setHours(12, 30, 0)).toISOString() }, end: { dateTime: new Date(new Date().setHours(13, 15, 0)).toISOString() }, description: "Fresh meal by helper." },
       { summary: "Homework & Spellings", start: { dateTime: new Date(new Date().setHours(15, 30, 0)).toISOString() }, end: { dateTime: new Date(new Date().setHours(16, 30, 0)).toISOString() }, description: "Practice reading." },
       { summary: "Shower & Change", start: { dateTime: new Date(new Date().setHours(17, 30, 0)).toISOString() }, end: { dateTime: new Date(new Date().setHours(18, 0, 0)).toISOString() }, description: "Wash up before dinner." },
@@ -481,7 +510,7 @@
 
       } catch (error) {
         console.error('Error fetching Google Calendar:', error);
-        calendarListEl.innerHTML = `<li class="error" style="color:#b91c1c;">⚠️ Unable to load Google Calendar.<br/><small>${error.message}. Please verify access permissions in Google Calendar settings.</small></li>`;
+        calendarListEl.innerHTML = `<li class="error" style="color:#ef4444;">⚠️ Unable to load Google Calendar.<br/><small>${error.message}. Please verify access permissions in Google Calendar settings.</small></li>`;
       }
     }
 
@@ -540,13 +569,19 @@
         htmlContent += `<div class="day-group-header">${dayTitle}</div>`;
 
         group.items.forEach(event => {
-          const isTask = !event.start.dateTime;
+          // Identify tasks vs timed events
+          const isTask = event.isTask || !event.start.dateTime || event.eventType === 'task';
           const start = event.start.dateTime ? new Date(event.start.dateTime) : new Date(event.start.date);
           const end = event.end && event.end.dateTime ? new Date(event.end.dateTime) : null;
 
-          let timeStr = 'All Day';
+          let timeStr = 'Task';
+          let badgeHtml = '';
 
-          if (!isTask) {
+          if (isTask) {
+            badgeHtml = '<span class="item-badge badge-task">✓ Task</span>';
+            timeStr = 'All Day';
+          } else {
+            badgeHtml = '<span class="item-badge badge-event">Event</span>';
             const startStr = start.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
             if (end) {
               const endStr = end.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
@@ -562,6 +597,7 @@
           htmlContent += `
             <li class="calendar-item" style="border-left-color: ${borderHex};">
               <div class="event-meta">
+                ${badgeHtml}
                 <span class="event-date" style="color: ${borderHex} !important;">${timeStr}</span>
               </div>
               <div class="event-details">
@@ -747,10 +783,9 @@
             }).slice(0, 3);
 
             const suffixStr = displayAs24Hour ? "" : " <span>mins</span>";
-
             const etaText = formattedTimes.length > 0 
-              ? (formattedTimes.join(sep) + suffixStr) 
-              : (`--${suffixStr}`);
+              ? formattedTimes.join(sep) + suffixStr 
+              : `--${suffixStr}`;
 
             const nearestCo = r.times[0] ? r.times[0].co : 'CTB';
             const routeClass = nearestCo === 'KMB' ? 'bus-route kmb-route' : 'bus-route';
